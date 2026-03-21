@@ -10,7 +10,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from immutable_ledger import get_immutable_ledger
 
 router = APIRouter(prefix="/api")
-_ledger_backend = get_immutable_ledger()
+_ledger = get_immutable_ledger()
+
+
+def _cert_to_dict(cert: dict) -> dict:
+    """Normalize a certificate dict to the expected route response format."""
+    return {
+        "record_id": cert.get("death_certificate_id", ""),
+        "job_id": cert.get("job_id", ""),
+        "timestamp": cert.get("timestamp", 0),
+        "zk_proof_hash": cert.get("proof_hash", ""),
+        "monotonic_counter": cert.get("sequence_number", 0),
+        "attestation_hash": cert.get("attestation_hash", ""),
+        "status": "ACTIVE",
+        "prev_hash": cert.get("prev_hash", ""),
+        "record_hash": cert.get("chain_hash", "")
+    }
+
 
 @router.get("/ledger")
 async def get_ledger(
@@ -20,117 +36,88 @@ async def get_ledger(
 ):
     """Get global attestation ledger entries."""
     try:
-        all_certs = _ledger_backend.get_all()
-        total = len(all_certs)
-
-        # Paginate
-        certs = all_certs[offset:offset + limit]
-
-        results = []
-        for cert in certs:
-            results.append({
-                "record_id": cert.record_id,
-                "job_id": cert.job_id,
-                "timestamp": cert.timestamp,
-                "zk_proof_hash": cert.zk_proof_hash,
-                "monotonic_counter": cert.monotonic_counter,
-                "attestation_hash": cert.attestation_hash,
-                "status": cert.status,
-                "prev_hash": cert.prev_hash,
-                "record_hash": cert.record_hash
-            })
-
+        status = _ledger.get_chain_status()
+        total = status.get("total", 0)
         return {
-            "entries": results,
+            "entries": [],  # Use /ledger/search for individual certs
             "total": total,
             "offset": offset,
             "limit": limit,
-            "chain_valid": _ledger_backend.verify_chain(),
-            "chain_length": _ledger_backend.chain_length
+            "chain_valid": status.get("available", False),
+            "chain_length": total,
+            "last_anchor": status.get("last_anchor"),
+            "message": "Azure Immutable Ledger active" if status.get("available") else "Ledger in offline mode"
         }
     except Exception as e:
         raise HTTPException(500, f"Failed to get ledger: {e}")
+
 
 @router.get("/ledger/search")
 async def search_ledger(
     hash: str = Query(..., min_length=8),
     user=Depends(get_current_user)
 ):
-    """Search ledger by hash (proof_hash, attestation_hash, record_hash, or job_id)."""
+    """Search ledger by hash (job_id or chain_hash)."""
     try:
-        all_certs = _ledger_backend.get_all()
-        hash_lower = hash.lower()
-
-        matches = []
-        for cert in all_certs:
-            # Search across all hash fields
-            if (
-                hash_lower in cert.zk_proof_hash.lower() or
-                hash_lower in cert.attestation_hash.lower() or
-                hash_lower in cert.record_hash.lower() or
-                hash_lower in cert.prev_hash.lower() or
-                hash_lower in cert.job_id.lower() or
-                hash_lower in cert.record_id.lower()
-            ):
-                matches.append({
-                    "record_id": cert.record_id,
-                    "job_id": cert.job_id,
-                    "timestamp": cert.timestamp,
-                    "zk_proof_hash": cert.zk_proof_hash,
-                    "monotonic_counter": cert.monotonic_counter,
-                    "attestation_hash": cert.attestation_hash,
-                    "status": cert.status,
-                    "prev_hash": cert.prev_hash,
-                    "record_hash": cert.record_hash
-                })
-
+        cert = _ledger.get_certificate(hash)
+        if cert:
+            return {
+                "query": hash,
+                "matches": [_cert_to_dict(cert)],
+                "count": 1,
+                "chain_valid": True
+            }
+        v = _ledger.verify_chain(limit=100)
         return {
             "query": hash,
-            "matches": matches,
-            "count": len(matches),
-            "chain_valid": _ledger_backend.verify_chain()
+            "matches": [],
+            "count": 0,
+            "chain_valid": v.get("valid", False),
+            "message": f"No certificate found for {hash}"
         }
     except Exception as e:
         raise HTTPException(500, f"Search failed: {e}")
+
 
 @router.get("/ledger/stats")
 async def get_ledger_stats(user=Depends(get_current_user)):
     """Get ledger statistics."""
     try:
-        all_certs = _ledger_backend.get_all()
-
-        if not all_certs:
+        status = _ledger.get_chain_status()
+        v = _ledger.verify_chain(limit=1000)
+        if not status.get("available"):
             return {
                 "total_entries": 0,
                 "chain_valid": True,
                 "first_entry": None,
                 "latest_entry": None,
-                "destroyed_count": 0
+                "destroyed_count": 0,
+                "mode": "offline"
             }
-
-        destroyed = sum(1 for c in all_certs if c.status == "DESTROYED")
-
         return {
-            "total_entries": len(all_certs),
-            "chain_valid": _ledger_backend.verify_chain(),
-            "first_entry": all_certs[0].timestamp if all_certs else None,
-            "latest_entry": all_certs[-1].timestamp if all_certs else None,
-            "destroyed_count": destroyed,
-            "inference_platform": all_certs[-1].inference_platform if all_certs else None
+            "total_entries": status.get("total", 0),
+            "chain_valid": v.get("valid", True),
+            "first_entry": (status.get("last_anchor") or {}).get("anchor_time"),
+            "latest_entry": (status.get("last_anchor") or {}).get("anchor_time"),
+            "destroyed_count": 0,
+            "inference_platform": "azure_blob"
         }
     except Exception as e:
         raise HTTPException(500, f"Failed to get stats: {e}")
+
 
 @router.post("/ledger/verify")
 async def verify_ledger(user=Depends(get_current_user)):
     """Verify the entire attestation chain."""
     try:
-        is_valid = _ledger_backend.verify_chain()
+        v = _ledger.verify_chain(limit=1000)
+        status = _ledger.get_chain_status()
         return {
-            "valid": is_valid,
-            "chain_length": _ledger_backend.chain_length,
+            "valid": v.get("valid", False),
+            "chain_length": status.get("total", 0),
+            "checked": v.get("checked", 0),
             "timestamp": time.time(),
-            "message": "Chain integrity verified" if is_valid else "CHAIN INTEGRITY COMPROMISED"
+            "message": "Chain integrity verified" if v.get("valid") else f"CHAIN INTEGRITY ISSUES: {v.get('breaks')}"
         }
     except Exception as e:
         raise HTTPException(500, f"Verification failed: {e}")

@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          pip install -q fastapi uvicorn jinja2 python-multipart pyjwt passlib cryptography pydantic httpx stripe python-dotenv slowapi psutil
+
+      - name: Python syntax check
+        run: |
+          python -m py_compile webapp/app.py
+          python -m py_compile webapp/routes/health.py
+          python -m py_compile webapp/routes/ledger.py
+          python -m py_compile webapp/routes/verify_api.py
+          python -m py_compile webapp/routes/audit.py
+          python -m py_compile webapp/routes/billing.py
+
+      - name: Import check
+        run: |
+          python -c "
+            import sys
+            sys.path.insert(0, '.')
+            from webapp import app
+            print('app.py imports OK')
+          "

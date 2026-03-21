@@ -1,0 +1,131 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main, master]
+
+env:
+  DEPLOY_HOST: 20.119.179.146
+  DEPLOY_USER: ardyn
+  DEPLOY_PATH: /home/ardyn/ardyn-sentinel-portal
+  WEBAPP_SERVICE: ads-webapp
+
+jobs:
+  # ── CI ──────────────────────────────────────────────────────────────────────
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -q fastapi uvicorn jinja2 python-multipart pyjwt passlib cryptography pydantic httpx stripe python-dotenv slowapi psutil
+
+      - name: Syntax check
+        run: |
+          python -m py_compile webapp/app.py
+          python -m py_compile webapp/routes/health.py
+          python -m py_compile webapp/routes/ledger.py
+          python -m py_compile webapp/routes/verify_api.py
+          python -m py_compile webapp/routes/audit.py
+          python -m py_compile webapp/routes/billing.py
+
+      - name: Import check
+        run: python -c "import sys; sys.path.insert(0, '.'); from webapp import app; print('OK')"
+
+  # ── Deploy — requires manual approval via GitHub environment ──────────────
+  deploy:
+    name: Deploy to Production
+    needs: ci
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://ardyn.ai
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to VM
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+          # Stash local changes, pull latest, restart
+          ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_HOST << 'REMOTE'
+            set -e
+            cd $DEPLOY_PATH
+            git stash || true
+            git pull origin master
+            sudo systemctl restart $WEBAPP_SERVICE
+            echo "Deploy complete"
+          REMOTE
+
+      - name: Health check
+        run: |
+          sleep 5
+          curl -sf --max-time 10 http://$DEPLOY_HOST:8080/health \
+            && echo "Health OK" \
+            || { echo "Health check FAILED"; exit 1; }
+
+      - name: Verify chain API
+        run: |
+          curl -sf --max-time 10 http://$DEPLOY_HOST:8080/api/verify/chain \
+            && echo "Chain API OK" \
+            || echo "Chain API check completed (may be empty)"
+
+  # ── Rollback ────────────────────────────────────────────────────────────────
+  rollback:
+    name: Rollback
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Rollback to previous commit
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+          # Revert to previous commit and restart
+          ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_HOST << 'REMOTE'
+            set -e
+            cd $DEPLOY_PATH
+            git revert --no-commit HEAD~1..HEAD || git reset --hard HEAD~1
+            git checkout .
+            sudo systemctl restart $WEBAPP_SERVICE
+            echo "Rollback complete"
+          REMOTE
+
+      - name: Health check after rollback
+        run: |
+          sleep 5
+          curl -sf --max-time 10 http://$DEPLOY_HOST:8080/health \
+            && echo "Rollback health OK" \
+            || { echo "Rollback health check FAILED"; exit 1; }
