@@ -1,0 +1,167 @@
+{% extends "enterprise_base.html" %}
+
+{% block title %}Audit Log — Ardyn AI{% endblock %}
+{% block page_title %}Audit Log{% endblock %}
+
+{% block extra_styles %}
+<style>
+.audit-filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.filter-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.audit-table {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.audit-table-header {
+  display: grid;
+  grid-template-columns: 180px 1fr 120px 100px;
+  gap: 16px;
+  padding: 12px 20px;
+  background: #f8fafc;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.audit-row {
+  display: grid;
+  grid-template-columns: 180px 1fr 120px 100px;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.audit-row:last-child {
+  border-bottom: none;
+}
+
+.audit-time {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.audit-action {
+  font-weight: 500;
+}
+
+.audit-detail {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.status-badge {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-success {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.export-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.export-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="export-bar">
+  <div class="audit-filters">
+    <button class="filter-btn active">All Events</button>
+    <button class="filter-btn">Inferences</button>
+    <button class="filter-btn">Documents</button>
+    <button class="filter-btn">Access</button>
+  </div>
+  <button class="export-btn">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/>
+      <line x1="12" y1="15" x2="12" y2="3"/>
+    </svg>
+    Export CSV
+  </button>
+</div>
+
+<div class="audit-table">
+  <div class="audit-table-header">
+    <div>Time</div>
+    <div>Event</div>
+    <div>User</div>
+    <div>Status</div>
+  </div>
+  
+  <div class="audit-row">
+    <div class="audit-time">2026-02-17 17:30:22</div>
+    <div>
+      <div class="audit-action">Inference Request</div>
+      <div class="audit-detail">Model: deepseek-r1:70b • 1,240 tokens</div>
+    </div>
+    <div>kyle@...</div>
+    <div><span class="status-badge status-success">Success</span></div>
+  </div>
+  
+  <div class="audit-row">
+    <div class="audit-time">2026-02-17 17:28:15</div>
+    <div>
+      <div class="audit-action">Document Uploaded</div>
+      <div class="audit-detail">contract_review.pdf • 2.4MB</div>
+    </div>
+    <div>kyle@...</div>
+    <div><span class="status-badge status-success">Success</span></div>
+  </div>
+  
+  <div class="audit-row">
+    <div class="audit-time">2026-02-17 17:15:08</div>
+    <div>
+      <div class="audit-action">Zeroization Proof Generated</div>
+      <div class="audit-detail">Job: a1b2c3d4 • 7.31ms</div>
+    </div>
+    <div>kyle@...</div>
+    <div><span class="status-badge status-success">Verified</span></div>
+  </div>
+</div>
+{% endblock %}

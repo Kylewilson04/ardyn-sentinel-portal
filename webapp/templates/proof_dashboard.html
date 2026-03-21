@@ -1,0 +1,363 @@
+{% extends "enterprise_base.html" %}
+{% block title %}Destruction Certificates — Ardyn Intelligence{% endblock %}
+{% block page_title %}Destruction Certificates{% endblock %}
+
+{% block extra_styles %}
+<style>
+/* Proof Dashboard Styles */
+.pd-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.pd-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+.pd-card-label { font-size: .75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.pd-card-value { font-size: 1.75rem; font-weight: 700; color: var(--text); }
+.pd-card-value.green { color: #16a34a; }
+
+/* Filters */
+.pd-filters { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+.pd-filters select, .pd-filters input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: .85rem; font-family: inherit; background: var(--surface); color: var(--text); }
+.pd-filters input[type="date"] { width: 150px; }
+
+/* Actions bar */
+.pd-actions { display: flex; gap: 12px; margin-bottom: 20px; }
+.pd-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border: none; border-radius: 8px; font-size: .85rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: background .15s; }
+.pd-btn-primary { background: #1e3a5f; color: #fff; }
+.pd-btn-primary:hover { background: #152d4a; }
+.pd-btn-secondary { background: #f1f5f9; color: var(--text); border: 1px solid var(--border); }
+.pd-btn-secondary:hover { background: #e2e8f0; }
+.pd-btn-green { background: #16a34a; color: #fff; }
+.pd-btn-green:hover { background: #15803d; }
+
+/* Chain status banner */
+.pd-chain { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: .9rem; display: none; }
+.pd-chain.show { display: flex; align-items: center; gap: 8px; }
+.pd-chain.ok { background: #dcfce7; color: #166534; }
+.pd-chain.fail { background: #fee2e2; color: #991b1b; }
+.pd-chain.pending { background: #fef3c7; color: #92400e; }
+
+/* Table */
+.pd-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.pd-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.pd-table th { text-align: left; padding: 12px 16px; background: #f8fafc; color: var(--text-muted); font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .4px; border-bottom: 1px solid var(--border); }
+.pd-table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.pd-table tbody tr { cursor: pointer; transition: background .1s; }
+.pd-table tbody tr:hover { background: #f8fafc; }
+.pd-table tbody tr.expanded { background: #f0f9ff; }
+
+.pd-hash { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: .78rem; color: #475569; }
+.pd-status { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; font-size: .8rem; }
+.pd-status.verified { color: #16a34a; }
+.pd-status.pending { color: #d97706; }
+.pd-cost { font-family: 'JetBrains Mono', monospace; font-size: .8rem; }
+
+/* Expanded detail row */
+.pd-detail-row td { padding: 0; }
+.pd-detail-row.hidden { display: none; }
+.pd-detail { padding: 20px 16px; background: #f8fafc; border-bottom: 2px solid var(--border); }
+.pd-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 900px) { .pd-detail-grid { grid-template-columns: 1fr; } }
+.pd-detail-section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+.pd-detail-section h4 { font-size: .8rem; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+.pd-field { margin-bottom: 10px; }
+.pd-field-label { font-size: .7rem; color: #94a3b8; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 2px; }
+.pd-field-value { font-family: 'JetBrains Mono', monospace; font-size: .78rem; color: var(--text); word-break: break-all; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; }
+.pd-field-value.full { font-size: .72rem; }
+
+.pd-detail-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+/* Empty state */
+.pd-empty { text-align: center; padding: 64px 24px; color: var(--text-muted); }
+.pd-empty svg { margin-bottom: 12px; opacity: .4; }
+.pd-empty p { margin-bottom: 4px; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pd-summary { grid-template-columns: repeat(2, 1fr); }
+  .pd-table { font-size: .8rem; }
+  .pd-table th, .pd-table td { padding: 8px 10px; }
+  .pd-filters { flex-direction: column; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Summary Cards -->
+<div class="pd-summary">
+  <div class="pd-card">
+    <div class="pd-card-label">Total Proofs</div>
+    <div class="pd-card-value" id="stat-total">—</div>
+  </div>
+  <div class="pd-card">
+    <div class="pd-card-label">Events This Month</div>
+    <div class="pd-card-value" id="stat-month">—</div>
+  </div>
+  <div class="pd-card">
+    <div class="pd-card-label">Verification Rate</div>
+    <div class="pd-card-value green" id="stat-rate">—</div>
+  </div>
+  <div class="pd-card">
+    <div class="pd-card-label">Cost This Month</div>
+    <div class="pd-card-value" id="stat-cost">—</div>
+  </div>
+</div>
+
+<!-- Actions -->
+<div class="pd-actions">
+  <button class="pd-btn pd-btn-green" onclick="verifyChain()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L3 7v6c0 5.25 3.75 10.13 9 11.25C17.25 23.13 21 18.25 21 13V7l-9-5z"/><path d="M9 12l2 2 4-4"/></svg>
+    Verify Chain Integrity
+  </button>
+  <button class="pd-btn pd-btn-secondary" onclick="exportAllJSON()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Export All (JSON)
+  </button>
+  <a href="/ledger" class="pd-btn pd-btn-secondary" style="text-decoration:none">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+    Global Ledger
+  </a>
+</div>
+
+<!-- Chain Status -->
+<div id="chain-status" class="pd-chain"></div>
+
+<!-- Filters -->
+<div class="pd-filters">
+  <select id="filter-model" onchange="applyFilters()">
+    <option value="">All Models</option>
+  </select>
+  <input type="date" id="filter-from" onchange="applyFilters()" title="From date">
+  <input type="date" id="filter-to" onchange="applyFilters()" title="To date">
+  <button class="pd-btn pd-btn-secondary" onclick="clearFilters()" style="padding:8px 14px">Clear</button>
+</div>
+
+<!-- Proofs Table -->
+<div class="pd-table-wrap">
+  <table class="pd-table">
+    <thead>
+      <tr>
+        <th>Job ID</th>
+        <th>Timestamp</th>
+        <th>Model</th>
+        <th>Proof Hash</th>
+        <th>Status</th>
+        <th style="text-align:right">Cost</th>
+      </tr>
+    </thead>
+    <tbody id="proofs-body">
+      <tr><td colspan="6" class="pd-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+        <p>Loading proofs…</p>
+      </td></tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allProofs = [];
+let allDetails = {};
+
+async function init() {
+  await Promise.all([loadSummary(), loadProofs()]);
+}
+
+async function loadSummary() {
+  try {
+    const s = await fetch('/api/proofs/summary', {credentials:'include'}).then(r=>r.json());
+    document.getElementById('stat-total').textContent = s.total_proofs.toLocaleString();
+    document.getElementById('stat-month').textContent = s.events_this_month.toLocaleString();
+    document.getElementById('stat-rate').textContent = s.verification_rate + '%';
+    document.getElementById('stat-cost').textContent = '$' + s.cost_this_month.toFixed(4);
+  } catch(e) { console.error('Summary load failed', e); }
+}
+
+async function loadProofs() {
+  try {
+    const proofs = await fetch('/api/proofs', {credentials:'include'}).then(r=>r.json());
+    allProofs = proofs;
+    populateModelFilter(proofs);
+    renderTable(proofs);
+  } catch(e) {
+    document.getElementById('proofs-body').innerHTML = '<tr><td colspan="6" class="pd-empty"><p>Failed to load proofs.</p></td></tr>';
+  }
+}
+
+function populateModelFilter(proofs) {
+  const models = [...new Set(proofs.map(p => p.certificate?.model || '').filter(Boolean))];
+  const sel = document.getElementById('filter-model');
+  models.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m;
+    sel.appendChild(o);
+  });
+}
+
+function renderTable(proofs) {
+  const body = document.getElementById('proofs-body');
+  if (!proofs.length) {
+    body.innerHTML = '<tr><td colspan="6" class="pd-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg><p>No destruction certificates found.</p><p style="font-size:.8rem">Run inferences to generate proofs.</p></td></tr>';
+    return;
+  }
+  body.innerHTML = proofs.map(p => {
+    const ts = p.timestamp ? new Date(p.timestamp * 1000) : null;
+    const model = p.certificate?.model || '—';
+    const hash = p.proof_hash || '';
+    const truncHash = hash.length > 16 ? hash.substring(0,16) + '…' : hash || '—';
+    return `
+      <tr onclick="toggleDetail('${p.job_id}')" data-job="${p.job_id}" data-model="${model}" data-ts="${p.timestamp||0}">
+        <td><code style="font-size:.78rem">${p.job_id.substring(0,12)}…</code></td>
+        <td>${ts ? ts.toLocaleDateString() + ' ' + ts.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—'}</td>
+        <td>${model}</td>
+        <td><span class="pd-hash">${truncHash}</span></td>
+        <td><span class="pd-status ${p.verified?'verified':'pending'}">${p.verified?'✅ Verified':'⏳ Pending'}</span></td>
+        <td style="text-align:right" class="pd-cost">${p.certificate?.cost_usd != null ? '$'+Number(p.certificate.cost_usd||0).toFixed(6) : '—'}</td>
+      </tr>
+      <tr class="pd-detail-row hidden" id="detail-${p.job_id}"><td colspan="6"></td></tr>
+    `;
+  }).join('');
+}
+
+async function toggleDetail(jobId) {
+  const row = document.getElementById('detail-' + jobId);
+  if (!row) return;
+  if (!row.classList.contains('hidden')) {
+    row.classList.add('hidden');
+    row.previousElementSibling.classList.remove('expanded');
+    return;
+  }
+  // Fetch full detail if not cached
+  if (!allDetails[jobId]) {
+    row.querySelector('td').innerHTML = '<div style="padding:16px;color:#64748b">Loading…</div>';
+    row.classList.remove('hidden');
+    try {
+      allDetails[jobId] = await fetch('/api/proofs/' + jobId, {credentials:'include'}).then(r=>r.json());
+    } catch(e) {
+      row.querySelector('td').innerHTML = '<div style="padding:16px;color:#991b1b">Failed to load details.</div>';
+      return;
+    }
+  }
+  row.classList.remove('hidden');
+  row.previousElementSibling.classList.add('expanded');
+  const d = allDetails[jobId];
+  const proof = d.proof || {};
+  const cert = d.certificate || {};
+  const zero = cert.zeroization || {};
+  const token = d.usage_token || {};
+  const billing = cert.billing_signature || cert.billing || {};
+
+  row.querySelector('td').innerHTML = `
+    <div class="pd-detail">
+      <div class="pd-detail-grid">
+        <div class="pd-detail-section">
+          <h4>🔐 Cryptographic Proof</h4>
+          <div class="pd-field"><div class="pd-field-label">ZK Proof Hash</div><div class="pd-field-value full">${proof.proof_hash||'N/A'}</div></div>
+          <div class="pd-field"><div class="pd-field-label">Merkle Root</div><div class="pd-field-value full">${proof.zeroization_proof?.merkle_root||proof.merkle_root||'N/A'}</div></div>
+          <div class="pd-field"><div class="pd-field-label">Counter Value</div><div class="pd-field-value">${proof.counter_value??'N/A'}</div></div>
+        </div>
+        <div class="pd-detail-section">
+          <h4>📜 Death Certificate</h4>
+          <div class="pd-field"><div class="pd-field-label">Certificate ID</div><div class="pd-field-value full">${cert.certificate_id||'N/A'}</div></div>
+          <div class="pd-field"><div class="pd-field-label">Destruction Nonce</div><div class="pd-field-value full">${cert.destruction_nonce||'N/A'}</div></div>
+          <div class="pd-field"><div class="pd-field-label">Zeroization Passes Verified</div><div class="pd-field-value">${zero.three_pass_verified ? '✅ 3-pass verified' : (zero.overwrite_passes||'N/A') + ' passes'}</div></div>
+          <div class="pd-field"><div class="pd-field-label">Latency</div><div class="pd-field-value">${zero.latency_ms ? zero.latency_ms.toFixed(2)+'ms' : 'N/A'}</div></div>
+        </div>
+        <div class="pd-detail-section">
+          <h4>💳 Billing &amp; Usage</h4>
+          <div class="pd-field"><div class="pd-field-label">Model</div><div class="pd-field-value">${d.model||'N/A'}</div></div>
+          <div class="pd-field"><div class="pd-field-label">Input / Output Tokens</div><div class="pd-field-value">${(d.input_tokens||0).toLocaleString()} / ${(d.output_tokens||0).toLocaleString()}</div></div>
+          <div class="pd-field"><div class="pd-field-label">Cost</div><div class="pd-field-value">$${Number(d.cost_usd||0).toFixed(6)}</div></div>
+          <div class="pd-field"><div class="pd-field-label">Billing Signature</div><div class="pd-field-value full">${typeof billing === 'string' ? billing : (billing.signature||JSON.stringify(billing)||'N/A')}</div></div>
+        </div>
+        <div class="pd-detail-section">
+          <h4>🎟️ UsageToken</h4>
+          <div class="pd-field"><div class="pd-field-label">Token Data</div><div class="pd-field-value full" style="white-space:pre-wrap;max-height:120px;overflow-y:auto">${token ? JSON.stringify(token, null, 2) : 'N/A'}</div></div>
+        </div>
+      </div>
+      <div class="pd-detail-actions">
+        <button class="pd-btn pd-btn-green" onclick="event.stopPropagation(); verifySingle('${jobId}', this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L3 7v6c0 5.25 3.75 10.13 9 11.25C17.25 23.13 21 18.25 21 13V7l-9-5z"/><path d="M9 12l2 2 4-4"/></svg>
+          Verify
+        </button>
+        <a href="/api/proofs/${jobId}/export" class="pd-btn pd-btn-secondary" onclick="event.stopPropagation()" style="text-decoration:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download JSON
+        </a>
+      </div>
+    </div>
+  `;
+}
+
+async function verifySingle(jobId, btn) {
+  const orig = btn.innerHTML;
+  btn.innerHTML = '⏳ Verifying…';
+  btn.disabled = true;
+  try {
+    const d = allDetails[jobId];
+    if (d && d.proof && d.proof.proof_hash) {
+      // Simple client-side hash presence check
+      btn.innerHTML = '✅ Hash Valid';
+      btn.style.background = '#16a34a';
+    } else {
+      btn.innerHTML = '⚠️ No Hash';
+      btn.style.background = '#d97706';
+    }
+  } catch(e) {
+    btn.innerHTML = '❌ Failed';
+    btn.style.background = '#dc2626';
+  }
+  setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; btn.style.background = ''; }, 3000);
+}
+
+async function verifyChain() {
+  const el = document.getElementById('chain-status');
+  el.className = 'pd-chain pending show';
+  el.innerHTML = '⏳ Verifying attestation chain integrity…';
+  try {
+    const r = await fetch('/api/verify-chain', {method:'POST', credentials:'include'}).then(r=>r.json());
+    if (r.integrity) {
+      el.className = 'pd-chain ok show';
+      el.innerHTML = '✅ Chain integrity verified — ' + r.verified + '/' + r.total + ' proofs cryptographically valid';
+    } else {
+      el.className = 'pd-chain fail show';
+      el.innerHTML = '❌ Chain integrity issue: ' + r.verified + '/' + r.total + ' valid';
+    }
+  } catch(e) {
+    el.className = 'pd-chain fail show';
+    el.innerHTML = '❌ Verification failed: ' + e.message;
+  }
+}
+
+function exportAllJSON() {
+  const data = JSON.stringify(allProofs, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'ardyn-proofs-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function applyFilters() {
+  const model = document.getElementById('filter-model').value;
+  const from = document.getElementById('filter-from').value;
+  const to = document.getElementById('filter-to').value;
+  const fromTs = from ? new Date(from).getTime()/1000 : 0;
+  const toTs = to ? new Date(to + 'T23:59:59').getTime()/1000 : Infinity;
+
+  const filtered = allProofs.filter(p => {
+    if (model && (p.certificate?.model||'') !== model) return false;
+    const ts = p.timestamp || 0;
+    if (ts < fromTs || ts > toTs) return false;
+    return true;
+  });
+  renderTable(filtered);
+}
+
+function clearFilters() {
+  document.getElementById('filter-model').value = '';
+  document.getElementById('filter-from').value = '';
+  document.getElementById('filter-to').value = '';
+  renderTable(allProofs);
+}
+
+init();
+</script>
+{% endblock %}

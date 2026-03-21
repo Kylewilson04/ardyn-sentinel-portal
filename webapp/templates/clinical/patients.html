@@ -1,0 +1,167 @@
+{% extends "enterprise_base.html" %}
+{% block title %}Patients — Ardyn Healthcare{% endblock %}
+{% block page_title %}Patient Vault{% endblock %}
+
+{% block content %}
+<div class="clinical-container">
+  <div class="clinical-hero" style="background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); border-radius: 20px; padding: 40px; margin-bottom: 32px; color: white;">
+    <h2 style="font-size: 2rem; font-weight: 600; margin-bottom: 12px;">🏥 Patient Vault</h2>
+    <p style="font-size: 1.125rem; color: rgba(255,255,255,0.8);">HIPAA-compliant encrypted patient records with TEE-secured AI analysis</p>
+    <div class="badge" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 50px; font-size: 0.875rem; color: #fff; margin-top: 16px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L3 7v6c0 5.25 3.75 10.13 9 11.25C17.25 23.13 21 18.25 21 13V7l-9-5z"/><path d="M9 12l2 2 4-4"/></svg>
+      TEE-Secured • Zeroized After Use
+    </div>
+  </div>
+
+  <div class="actions-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h3 style="font-size: 1.25rem; font-weight: 600;">Patient List</h3>
+    <a href="/clinical/portal/cases/new" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; background: #1e3a5f; color: white; text-decoration: none; border-radius: 8px; font-weight: 500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      New Case
+    </a>
+  </div>
+
+  <div class="card" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+    <div class="patient-list" id="patient-list" style="min-height: 200px; display: flex; align-items: center; justify-content: center; color: #64748b;">
+      Loading patients...
+    </div>
+  </div>
+</div>
+
+<style>
+.patient-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  align-items: center;
+}
+.patient-row:last-child {
+  border-bottom: none;
+}
+.patient-row:hover {
+  background: #f8fafc;
+}
+.patient-name {
+  font-weight: 500;
+  color: #1e293b;
+}
+.patient-mrn {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-family: monospace;
+}
+.patient-date {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.875rem;
+}
+</style>
+
+<script>
+// Debug mode
+console.log("Patient page loading...");
+
+// API helper function
+async function api(path, options) {
+  options = options || {};
+  
+  // Get token from cookie
+  var token = null;
+  var cookies = document.cookie.split(';');
+  for (var i = 0; i < cookies.length; i++) {
+    var cookie = cookies[i].trim();
+    if (cookie.indexOf('ads_token=') === 0) {
+      token = cookie.substring('ads_token='.length);
+      break;
+    }
+  }
+  
+  console.log("API call to:", path, "Token present:", !!token);
+  
+  var headers = {
+    'Accept': 'application/json'
+  };
+  
+  if (token) {
+    headers['Authorization'] = 'Bearer ' + token;
+  }
+  
+  if (options.headers) {
+    for (var key in options.headers) {
+      headers[key] = options.headers[key];
+    }
+  }
+  
+  var resp = await fetch(path, {
+    method: options.method || 'GET',
+    headers: headers
+  });
+  
+  console.log("API response status:", resp.status);
+  
+  if (!resp.ok) {
+    if (resp.status === 401) {
+      window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+      return null;
+    }
+    throw new Error('HTTP ' + resp.status);
+  }
+  
+  return resp.json();
+}
+
+async function loadPatients() {
+  console.log("Loading patients...");
+  var list = document.getElementById('patient-list');
+  
+  try {
+    var r = await api('/api/clinical/patients');
+    console.log("API response:", r);
+    
+    if (!r || !r.patients || r.patients.length === 0) {
+      list.innerHTML = '<div style="text-align: center; padding: 48px;">' +
+        '<p style="color: #64748b; margin-bottom: 16px;">No patients yet</p>' +
+        '<a href="/clinical/portal/cases/new" class="btn btn-primary">Create First Patient</a>' +
+      '</div>';
+      return;
+    }
+    
+    var html = '';
+    for (var j = 0; j < r.patients.length; j++) {
+      var p = r.patients[j];
+      html += '<div class="patient-row">' +
+        '<div>' +
+          '<div class="patient-name">Patient ' + p.patient_mrn + '</div>' +
+          '<div class="patient-mrn">MRN: ' + p.patient_mrn + '</div>' +
+        '</div>' +
+        '<div class="patient-date">Created: ' + new Date(p.created_at * 1000).toLocaleDateString() + '</div>' +
+        '<div class="patient-date">Updated: ' + new Date(p.updated_at * 1000).toLocaleDateString() + '</div>' +
+        '<div>' +
+          '<a href="/clinical/portal/cases/new?vault=' + p.id + '" class="btn btn-sm btn-outline">New Case</a>' +
+        '</div>' +
+      '</div>';
+    }
+    list.innerHTML = html;
+  } catch(e) {
+    console.error("Error loading patients:", e);
+    list.innerHTML = '<div style="text-align: center; padding: 48px; color: #dc2626;">' +
+      '<p>Failed to load patients</p>' +
+      '<p style="font-size: 0.875rem;">' + e.message + '</p>' +
+      '<button onclick="loadPatients()" style="margin-top: 16px; padding: 8px 16px; background: #1e3a5f; color: white; border: none; border-radius: 6px; cursor: pointer;">Retry</button>' +
+    '</div>';
+  }
+}
+
+// Load when page is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadPatients);
+} else {
+  loadPatients();
+}
+</script>
+{% endblock %}

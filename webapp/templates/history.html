@@ -1,0 +1,72 @@
+{% extends "enterprise_base.html" %}
+{% block title %}History — ADS{% endblock %}
+{% block page_title %}Inference History{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="filter-bar">
+    <select id="filter-model" class="input input-sm" onchange="loadHistory()" style="max-width:240px">
+      <option value="">All Models</option>
+      <option value="huihui_ai/qwen3-coder-abliterated:30b">Qwen3 Coder 30B</option>
+      <option value="huihui_ai/deepseek-r1-abliterated:70b">DeepSeek R1 70B</option>
+    </select>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Timestamp</th><th>Prompt</th><th>Model</th><th>Status</th><th>Proof ID</th><th>Tokens</th><th>Cost</th></tr></thead>
+      <tbody id="history-body"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="detail-modal" class="modal" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal-content">
+    <button class="modal-close" onclick="this.parentElement.parentElement.style.display='none'">&times;</button>
+    <h2 id="modal-title">Inference Details</h2>
+    <div id="modal-body"></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadHistory() {
+  const model = document.getElementById('filter-model').value;
+  try {
+    const jobs = await api('/api/recent');
+    const filtered = model ? jobs.filter(j => j.model === model) : jobs;
+    const tbody = document.getElementById('history-body');
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No inferences found</td></tr>';
+    } else {
+      tbody.innerHTML = filtered.map(j => `<tr class="clickable" onclick="showDetail('${j.id}')">
+        <td>${new Date(j.created_at*1000).toLocaleString()}</td>
+        <td class="prompt-preview">${esc((j.prompt||'').substring(0,50))}${(j.prompt||'').length>50?'…':''}</td>
+        <td><span class="model-badge">${shortModel(j.model)}</span></td>
+        <td><span class="status-badge ${j.status}">${j.status}</span></td>
+        <td class="mono">${j.id.substring(0,8)}…</td>
+        <td>${(j.input_tokens||0)+(j.output_tokens||0)}</td>
+        <td>$${(j.cost_usd||0).toFixed(6)}</td>
+      </tr>`).join('');
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function showDetail(jobId) {
+  try {
+    const d = await api(`/api/proofs/${jobId}`);
+    document.getElementById('modal-title').textContent = `Job ${jobId.substring(0,12)}…`;
+    document.getElementById('modal-body').innerHTML = `
+      <div class="detail-section"><h4>Prompt</h4><p>${esc(d.prompt||'')}</p></div>
+      <div class="detail-section"><h4>Response</h4><div class="response-content">${formatResponse(d.response||'')}</div></div>
+      <div class="detail-section"><h4>Model</h4><p>${d.model}</p></div>
+      <div class="detail-section"><h4>Tokens</h4><p>Input: ${d.input_tokens} · Output: ${d.output_tokens} · Cost: $${(d.cost_usd||0).toFixed(6)}</p></div>
+      ${d.proof ? `<div class="detail-section"><h4>Destruction Proof</h4><pre class="code-block" style="display:block">${JSON.stringify(d.proof,null,2)}</pre></div>` : ''}
+      ${d.certificate ? `<div class="detail-section"><h4>Death Certificate</h4><pre class="code-block" style="display:block">${JSON.stringify(d.certificate,null,2)}</pre></div>` : ''}
+    `;
+    document.getElementById('detail-modal').style.display = 'flex';
+  } catch(e) { alert('Failed to load details'); }
+}
+
+function formatResponse(t) { return (t||'').replace(/</g,'&lt;').replace(/\n/g,'<br>'); }
+loadHistory();
+</script>
+{% endblock %}

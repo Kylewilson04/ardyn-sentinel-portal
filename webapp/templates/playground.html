@@ -1,0 +1,178 @@
+{% extends "enterprise_base.html" %}
+{% block title %}Playground — ADS{% endblock %}
+{% block page_title %}Playground{% endblock %}
+{% block content %}
+<div class="playground-layout">
+  <div class="playground-input">
+    <div class="card">
+      <div class="form-group">
+        <label>Model</label>
+        <select id="model-select" class="input">
+          <option value="llama3.3:70b">Llama 3.3 70B</option>
+          <option value="deepseek-r1:70b">DeepSeek R1 70B</option>
+          <option value="huihui_ai/qwen3-coder-abliterated:30b">Qwen3 Coder 30B</option>
+          <option value="nomic-embed-text">Nomic Embed Text</option>
+          <option value="all-minilm">all-MiniLM</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>System Prompt <span class="optional">(optional)</span></label>
+        <textarea id="system-prompt" class="input" rows="2" placeholder="You are a helpful assistant..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Your Prompt</label>
+        <textarea id="user-prompt" class="input" rows="6" placeholder="Ask anything — your data will be cryptographically destroyed after inference..." autofocus></textarea>
+      </div>
+      <button id="submit-btn" class="btn btn-primary btn-full" onclick="submitInference()">
+        Submit Sovereign Inference
+      </button>
+    </div>
+  </div>
+
+  <div class="playground-output">
+    <!-- Queue Status -->
+    <div id="queue-status" class="card" style="display:none">
+      <h3>⏳ Queue Status</h3>
+      <p id="queue-position-text">Waiting in queue...</p>
+      <div class="progress-bar-container" style="background:#1a1a2e;border-radius:4px;height:6px;margin-top:8px">
+        <div id="queue-progress-bar" style="background:var(--accent,#6c5ce7);height:100%;border-radius:4px;width:0%;transition:width 0.5s"></div>
+      </div>
+    </div>
+
+    <!-- Pipeline Progress -->
+    <div id="pipeline-progress" class="card pipeline-card" style="display:none">
+      <h3>Sovereignty Pipeline</h3>
+      <div class="pipeline-steps">
+        <div class="pipeline-step" id="step-encrypt"><div class="step-indicator"></div><span>Encrypting your data</span></div>
+        <div class="pipeline-step" id="step-tee"><div class="step-indicator"></div><span>Processing inside TEE</span></div>
+        <div class="pipeline-step" id="step-destroy"><div class="step-indicator"></div><span>Destroying your data</span></div>
+        <div class="pipeline-step" id="step-proof"><div class="step-indicator"></div><span>Generating destruction proof</span></div>
+        <div class="pipeline-step" id="step-key"><div class="step-indicator"></div><span>Deriving decryption key</span></div>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div id="result-area" style="display:none">
+      <div class="card result-card">
+        <h3>Response</h3>
+        <div id="response-text" class="response-content"></div>
+      </div>
+
+      <div class="card expandable" onclick="this.classList.toggle('expanded')">
+        <h3>Destruction Proof <span class="expand-icon">›</span></h3>
+        <div class="expand-content"><pre id="proof-detail"></pre></div>
+      </div>
+
+      <div class="card expandable" onclick="this.classList.toggle('expanded')">
+        <h3>Death Certificate <span class="expand-icon">›</span></h3>
+        <div class="expand-content"><pre id="cert-detail"></pre></div>
+      </div>
+
+      <div class="card expandable" onclick="this.classList.toggle('expanded')">
+        <h3>Usage Token <span class="expand-icon">›</span></h3>
+        <div class="expand-content"><pre id="usage-detail"></pre></div>
+      </div>
+
+      <div id="worker-info" class="card" style="display:none">
+        <small>Processed by worker: <strong id="worker-id-text"></strong> in <span id="latency-text"></span></small>
+      </div>
+
+      <div class="result-actions">
+        <button class="btn btn-outline" onclick="downloadCert()">Download Certificate</button>
+        <button class="btn btn-outline" onclick="verifyProof()">Verify Proof</button>
+        <span id="verify-status"></span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let lastResult = null;
+const steps = ['step-encrypt','step-tee','step-destroy','step-proof','step-key'];
+const delays = [800, 0, 600, 400, 300];
+
+async function submitInference() {
+  const prompt = document.getElementById('user-prompt').value.trim();
+  if (!prompt) return;
+  const model = document.getElementById('model-select').value;
+  const system = document.getElementById('system-prompt').value.trim() || null;
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Processing...';
+
+  document.getElementById('pipeline-progress').style.display = 'block';
+  document.getElementById('result-area').style.display = 'none';
+  steps.forEach(s => { document.getElementById(s).className = 'pipeline-step'; });
+
+  async function animateStep(i) {
+    document.getElementById(steps[i]).classList.add('active');
+    await sleep(delays[i]);
+    document.getElementById(steps[i]).classList.remove('active');
+    document.getElementById(steps[i]).classList.add('done');
+  }
+
+  await animateStep(0);
+  document.getElementById(steps[1]).classList.add('active');
+
+  try {
+    const data = await api('/api/inference', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({prompt, model, system})
+    });
+    lastResult = data;
+
+    document.getElementById(steps[1]).classList.remove('active');
+    document.getElementById(steps[1]).classList.add('done');
+    for (let i = 2; i < steps.length; i++) { await animateStep(i); }
+
+    document.getElementById('response-text').innerHTML = formatResponse(data.response);
+    document.getElementById('proof-detail').textContent = JSON.stringify(data.proof, null, 2);
+    document.getElementById('cert-detail').textContent = JSON.stringify(data.certificate, null, 2);
+    document.getElementById('usage-detail').textContent = JSON.stringify(data.usage_token, null, 2);
+    document.getElementById('result-area').style.display = 'block';
+    document.getElementById('verify-status').textContent = '';
+    if (data.worker_id) {
+      document.getElementById('worker-id-text').textContent = data.worker_id;
+      document.getElementById('latency-text').textContent = (data.latency_ms ? (data.latency_ms/1000).toFixed(1)+'s' : '');
+      document.getElementById('worker-info').style.display = 'block';
+    }
+  } catch(e) {
+    steps.forEach(s => document.getElementById(s).classList.add('error'));
+    alert('Inference failed: ' + (e.message || e));
+  }
+  btn.disabled = false;
+  btn.innerHTML = 'Submit Sovereign Inference';
+}
+
+function downloadCert() {
+  if (!lastResult) return;
+  const blob = new Blob([JSON.stringify(lastResult.certificate, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `death-certificate-${lastResult.job_id}.json`;
+  a.click();
+}
+
+async function verifyProof() {
+  if (!lastResult) return;
+  const el = document.getElementById('verify-status');
+  el.textContent = 'Verifying...';
+  el.className = '';
+  try {
+    const r = await api(`/api/proofs/${lastResult.job_id}`);
+    el.textContent = '✓ Proof Verified — Data Provably Destroyed';
+    el.className = 'verify-ok';
+  } catch {
+    el.textContent = '✗ Verification Failed';
+    el.className = 'verify-fail';
+  }
+}
+
+function formatResponse(text) {
+  return text.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="code-block" style="display:block"><code>$2</code></pre>')
+    .replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+}
+</script>
+{% endblock %}

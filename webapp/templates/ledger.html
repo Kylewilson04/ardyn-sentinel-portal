@@ -1,0 +1,229 @@
+{% extends "enterprise_base.html" %}
+{% block title %}Attestation Ledger — Ardyn AI{% endblock %}
+{% block page_title %}Private Attestation Ledger{% endblock %}
+{% block content %}
+<style>
+.ledger-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:16px}
+.ledger-stats{display:flex;gap:16px;flex-wrap:wrap}
+.stat-card{background:#fff;border-radius:12px;padding:16px 24px;border:1px solid #e5e5e5;min-width:140px}
+.stat-card .value{font-size:1.5rem;font-weight:700;color:#1a1a1a}
+.stat-card .label{font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.5px}
+.stat-card.valid .value{color:#16a34a}
+.stat-card.invalid .value{color:#dc2626}
+
+.search-box{width:100%;max-width:500px}
+.search-box input{width:100%;padding:12px 16px;border:1px solid #d4d4d4;border-radius:8px;font-size:.9rem}
+.search-box input:focus{outline:none;border-color:#D97706}
+
+.ledger-table{width:100%;background:#fff;border-radius:12px;border:1px solid #e5e5e5;overflow:hidden}
+.ledger-table table{width:100%;border-collapse:collapse;font-size:.85rem}
+.ledger-table th{background:#f8f9fa;padding:12px 16px;text-align:left;font-weight:600;color:#666;border-bottom:1px solid #e5e5e5}
+.ledger-table td{padding:12px 16px;border-bottom:1px solid #f0f0f0;color:#444}
+.ledger-table tr:hover{background:#fafafa}
+.ledger-table .hash{font-family:'JetBrains Mono',monospace;font-size:.75rem;color:#666;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ledger-table .status{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:12px;font-size:.7rem;font-weight:600}
+.ledger-table .status.destroyed{background:#dcfce7;color:#166534}
+.ledger-table .timestamp{font-size:.8rem;color:#888}
+
+.hash-chain{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:.7rem;color:#888}
+.hash-chain .arrow{color:#d4d4d4}
+.hash-chain .hash-link{font-family:'JetBrains Mono',monospace;max-width:80px;overflow:hidden;text-overflow:ellipsis}
+
+.pagination{display:flex;justify-content:center;gap:8px;margin-top:24px}
+.pagination button{padding:8px 16px;border:1px solid #d4d4d4;background:#fff;border-radius:8px;cursor:pointer;font-size:.85rem}
+.pagination button:hover{border-color:#D97706;color:#D97706}
+.pagination button:disabled{opacity:.5;cursor:not-allowed}
+.pagination .info{padding:8px 16px;font-size:.85rem;color:#666}
+
+.search-results{margin-top:16px;padding:16px;background:#f8f9fa;border-radius:8px}
+.search-results h4{margin:0 0 12px;font-size:.9rem;color:#1a1a1a}
+.no-results{text-align:center;padding:48px;color:#888}
+.no-results svg{margin-bottom:16px;opacity:.5}
+</style>
+
+<div class="ledger-header">
+  <div class="ledger-stats">
+    <div class="stat-card" id="stat-total">
+      <div class="value">—</div>
+      <div class="label">Total Entries</div>
+    </div>
+    <div class="stat-card" id="stat-valid">
+      <div class="value">—</div>
+      <div class="label">Chain Valid</div>
+    </div>
+    <div class="stat-card" id="stat-destroyed">
+      <div class="value">—</div>
+      <div class="label">Data Destructions</div>
+    </div>
+  </div>
+  
+  <div class="search-box">
+    <input type="text" id="hashSearch" placeholder="Search by hash (proof, attestation, record, job ID)..." onkeydown="if(event.key==='Enter')searchLedger()">
+  </div>
+</div>
+
+<div id="searchResults" style="display:none" class="search-results">
+  <h4>Search Results</h4>
+  <div id="searchResultsList"></div>
+</div>
+
+<div class="ledger-table">
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Timestamp</th>
+        <th>Job ID</th>
+        <th>ZK Proof Hash</th>
+        <th>Counter</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="ledgerBody">
+      <tr>
+        <td colspan="6" style="text-align:center;padding:48px">Loading ledger...</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="pagination" id="pagination">
+  <button onclick="prevPage()" id="btnPrev">← Previous</button>
+  <span class="info" id="pageInfo">Page 1</span>
+  <button onclick="nextPage()" id="btnNext">Next →</button>
+</div>
+
+<script>
+let currentOffset = 0;
+let currentLimit = 50;
+let totalEntries = 0;
+
+async function loadLedgerStats() {
+  try {
+    const resp = await fetch('/api/ledger/stats', { credentials: 'include' });
+    if (resp.ok) {
+      const stats = await resp.json();
+      document.querySelector('#stat-total .value').textContent = stats.total_entries;
+      document.querySelector('#stat-destroyed .value').textContent = stats.destroyed_count;
+      
+      const validCard = document.querySelector('#stat-valid');
+      if (stats.chain_valid) {
+        validCard.classList.add('valid');
+        validCard.querySelector('.value').textContent = '✓ YES';
+      } else {
+        validCard.classList.add('invalid');
+        validCard.querySelector('.value').textContent = '✗ NO';
+      }
+    }
+  } catch(e) {
+    console.error('Failed to load stats:', e);
+  }
+}
+
+async function loadLedger() {
+  try {
+    const resp = await fetch(`/api/ledger?limit=${currentLimit}&offset=${currentOffset}`, { credentials: 'include' });
+    if (!resp.ok) throw new Error('Failed to load');
+    
+    const data = await resp.json();
+    totalEntries = data.total;
+    
+    renderLedger(data.entries);
+    updatePagination();
+  } catch(e) {
+    document.getElementById('ledgerBody').innerHTML = `<tr><td colspan="6" style="text-align:center;color:#dc2626;padding:48px">Error: ${e.message}</td></tr>`;
+  }
+}
+
+function renderLedger(entries) {
+  const tbody = document.getElementById('ledgerBody');
+  
+  if (entries.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="no-results">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+          <p>No entries in ledger yet.</p>
+        </td>
+      </tr>`;
+    return;
+  }
+  
+  tbody.innerHTML = entries.map((entry, i) => `
+    <tr>
+      <td>${currentOffset + i + 1}</td>
+      <td class="timestamp">${new Date(entry.timestamp * 1000).toLocaleString()}</td>
+      <td class="hash" title="${entry.job_id}">${entry.job_id}</td>
+      <td class="hash" title="${entry.zk_proof_hash}">${entry.zk_proof_hash}</td>
+      <td>${entry.monotonic_counter}</td>
+      <td><span class="status destroyed">● ${entry.status}</span></td>
+    </tr>
+  `).join('');
+}
+
+function updatePagination() {
+  const totalPages = Math.ceil(totalEntries / currentLimit);
+  const currentPage = Math.floor(currentOffset / currentLimit) + 1;
+  
+  document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages || 1} (${totalEntries} total)`;
+  document.getElementById('btnPrev').disabled = currentOffset === 0;
+  document.getElementById('btnNext').disabled = currentOffset + currentLimit >= totalEntries;
+}
+
+function prevPage() {
+  if (currentOffset >= currentLimit) {
+    currentOffset -= currentLimit;
+    loadLedger();
+  }
+}
+
+function nextPage() {
+  if (currentOffset + currentLimit < totalEntries) {
+    currentOffset += currentLimit;
+    loadLedger();
+  }
+}
+
+async function searchLedger() {
+  const query = document.getElementById('hashSearch').value.trim();
+  if (!query) {
+    document.getElementById('searchResults').style.display = 'none';
+    return;
+  }
+  
+  try {
+    const resp = await fetch(`/api/ledger/search?hash=${encodeURIComponent(query)}`, { credentials: 'include' });
+    if (!resp.ok) throw new Error('Search failed');
+    
+    const data = await resp.json();
+    const container = document.getElementById('searchResults');
+    const list = document.getElementById('searchResultsList');
+    
+    if (data.matches.length === 0) {
+      list.innerHTML = '<p style="color:#888">No matches found.</p>';
+    } else {
+      list.innerHTML = data.matches.map(m => `
+        <div style="padding:12px;background:#fff;border-radius:8px;margin-bottom:8px;border:1px solid #e5e5e5">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <strong>Job: ${m.job_id.substring(0, 16)}...</strong>
+            <span class="status destroyed">${m.status}</span>
+          </div>
+          <div style="font-family:monospace;font-size:.75rem;color:#666;margin-bottom:4px">ZK Proof: ${m.zk_proof_hash}</div>
+          <div style="font-family:monospace;font-size:.75rem;color:#666;margin-bottom:4px">Attestation: ${m.attestation_hash}</div>
+          <div style="font-family:monospace;font-size:.75rem;color:#666">Record: ${m.record_hash}</div>
+          <div style="margin-top:8px;font-size:.8rem;color:#888">Counter: ${m.monotonic_counter} | Time: ${new Date(m.timestamp * 1000).toLocaleString()}</div>
+        </div>
+      `).join('');
+    }
+    
+    container.style.display = 'block';
+  } catch(e) {
+    alert('Search failed: ' + e.message);
+  }
+}
+
+// Init
+loadLedgerStats();
+loadLedger();
+</script>
+{% endblock %}

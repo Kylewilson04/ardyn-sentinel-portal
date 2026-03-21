@@ -1,0 +1,158 @@
+{% extends "enterprise_base.html" %}
+
+{% block title %}Matters — Ardyn AI{% endblock %}
+{% block page_title %}Matters{% endblock %}
+
+{% block extra_styles %}
+<style>
+.matter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-primary:hover {
+  background: var(--primary-light);
+}
+
+.matter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.matter-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.matter-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.matter-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.matter-status.active {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.matter-status.closed {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.matter-name {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.matter-client {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.matter-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 64px 20px;
+  color: var(--text-muted);
+}
+
+.empty-state svg {
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="matter-header">
+  <div>
+    <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 4px;">Active Matters</h2>
+    <p style="color: var(--text-muted);">Manage your legal cases and client matters</p>
+  </div>
+  <button class="btn-primary" onclick="createMatter()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="12" y1="5" x2="12" y2="19"/>
+      <line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+    New Matter
+  </button>
+</div>
+
+<div class="matter-grid" id="matterGrid">
+  <!-- Demo matters -->
+  <div class="matter-card" onclick="openMatter('matter-001')">
+    <div class="matter-status active">
+      <span style="width: 6px; height: 6px; background: #16a34a; border-radius: 50%;"></span>
+      Active
+    </div>
+    <div class="matter-name">Contract Review - Acquisition</div>
+    <div class="matter-client">Demo Client A</div>
+    <div class="matter-meta">
+      <span>3 documents</span>
+      <span>Updated 2d ago</span>
+    </div>
+  </div>
+  
+  <div class="matter-card" onclick="openMatter('matter-002')">
+    <div class="matter-status active">
+      <span style="width: 6px; height: 6px; background: #16a34a; border-radius: 50%;"></span>
+      Active
+    </div>
+    <div class="matter-name">IP Litigation - Patent Dispute</div>
+    <div class="matter-client">Demo Client B</div>
+    <div class="matter-meta">
+      <span>12 documents</span>
+      <span>Updated 5h ago</span>
+    </div>
+  </div>
+</div>
+
+<script>
+function createMatter() {
+  alert('Create matter form would open here. This is a UI demo.');
+}
+
+function openMatter(id) {
+  alert('Opening matter: ' + id);
+}
+</script>
+{% endblock %}

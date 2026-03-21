@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your DDCs — Ardyn Sentinel</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📜</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0e17;
+      --card: #111827;
+      --border: #1e293b;
+      --text: #f1f5f9;
+      --text-dim: #94a3b8;
+      --gold: #f59e0b;
+      --green: #10b981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .header h1 { font-size: 1.5rem; }
+    .header h1 span { color: var(--gold); }
+    .org-badge {
+      background: var(--card);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .stat-label { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-value { font-size: 2rem; font-weight: 700; color: var(--gold); margin-top: 4px; }
+
+    .ddc-list {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .ddc-header {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 16px;
+      padding: 16px 20px;
+      background: rgba(255,255,255,0.03);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+    }
+    .ddc-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 16px;
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      align-items: center;
+    }
+    .ddc-row:hover { background: rgba(255,255,255,0.02); }
+    .ddc-id { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--gold); }
+    .ddc-job { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text-dim); }
+    .ddc-time { font-size: 0.85rem; }
+    .ddc-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .ddc-status.destroyed { background: rgba(16, 185, 129, 0.15); color: var(--green); }
+    .ddc-status.pending { background: rgba(245, 158, 11, 0.15); color: var(--gold); }
+
+    .loading { text-align: center; padding: 40px; color: var(--text-dim); }
+    .error { text-align: center; padding: 40px; color: #ef4444; }
+    .empty { text-align: center; padding: 40px; color: var(--text-dim); }
+
+    .login-prompt {
+      text-align: center;
+      padding: 60px;
+    }
+    .login-prompt a {
+      color: var(--gold);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Your <span>DDCs</span></h1>
+    <div class="org-badge" id="orgBadge">Loading...</div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total DDCs</div>
+      <div class="stat-value" id="totalDDCs">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Destroyed</div>
+      <div class="stat-value" id="destroyedDDCs">—</div>
+    </div>
+  </div>
+
+  <div class="ddc-list">
+    <div class="ddc-header">
+      <div>DDC ID</div>
+      <div>Job ID</div>
+      <div>Timestamp</div>
+      <div>Status</div>
+    </div>
+    <div id="ddcContainer">
+      <div class="loading">Loading your DDCs...</div>
+    </div>
+  </div>
+
+  <script>
+    function fmtTime(ts) {
+      if (!ts) return '—';
+      return new Date(ts * 1000).toLocaleString();
+    }
+
+    function shorten(s) {
+      if (!s) return '—';
+      return s.substring(0, 12) + '...';
+    }
+
+    async function loadDDCs() {
+      try {
+        // First get stats
+        const [statsRes, ddcsRes] = await Promise.all([
+          fetch('/api/org/ddcs-stats'),
+          fetch('/api/org/ddcs?limit=50')
+        ]);
+
+        if (statsRes.status === 401 || ddcsRes.status === 401) {
+          document.getElementById('ddcContainer').innerHTML = 
+            '<div class="login-prompt"><a href="/login">Please login to view your DDCs</a></div>';
+          return;
+        }
+
+        const stats = await statsRes.json();
+        const ddcs = await ddcsRes.json();
+
+        document.getElementById('orgBadge').textContent = 'Org: ' + (stats.org_id || 'Unknown').substring(0, 16);
+        document.getElementById('totalDDCs').textContent = stats.total_ddcs || 0;
+        document.getElementById('destroyedDDCs').textContent = stats.destroyed || 0;
+
+        if (!ddcs.ddcs || ddcs.ddcs.length === 0) {
+          document.getElementById('ddcContainer').innerHTML = '<div class="empty">No DDCs found. Submit inference jobs to generate DDCs.</div>';
+          return;
+        }
+
+        document.getElementById('ddcContainer').innerHTML = ddcs.ddcs.map(ddc => `
+          <div class="ddc-row">
+            <div class="ddc-id">${ddc.ddc_id.substring(0, 16)}...</div>
+            <div class="ddc-job">${ddc.job_id ? ddc.job_id.substring(0, 12) + '...' : '—'}</div>
+            <div class="ddc-time">${fmtTime(ddc.timestamp)}</div>
+            <div class="ddc-status ${ddc.status ? ddc.status.toLowerCase() : 'pending'}">
+              ${ddc.status || 'PENDING'}
+            </div>
+          </div>
+        `).join('');
+
+      } catch (e) {
+        console.error(e);
+        document.getElementById('ddcContainer').innerHTML = '<div class="error">Failed to load DDCs: ' + e.message + '</div>';
+      }
+    }
+
+    loadDDCs();
+    setInterval(loadDDCs, 30000);
+  </script>
+</body>
+</html>

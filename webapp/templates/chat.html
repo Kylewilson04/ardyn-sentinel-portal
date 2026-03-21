@@ -1,0 +1,497 @@
+{% extends "enterprise_base.html" %}
+{% block title %}Chat — Ardyn{% endblock %}
+{% block page_title %}Secure Chat{% endblock %}
+{% block extra_styles %}
+<style>
+.chat-wrapper{display:flex;height:calc(100vh - 140px);gap:0;margin:-24px -24px 0;position:relative;background:var(--bg-primary, #FAFAF9);border-radius:12px;overflow:hidden}
+
+/* Left Sidebar - Conversations */
+.conv-sidebar{width:220px;background:#fff;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;border-right:1px solid #e5e5e5}
+.conv-sidebar-header{padding:16px;border-bottom:1px solid #e5e5e5;display:flex;align-items:center;gap:8px}
+.conv-sidebar-header h3{color:#1a1a1a;font-size:.85rem;font-weight:600;margin:0;flex:1}
+.btn-new-chat{background:#D97706;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn-new-chat:hover{background:#b45309}
+.conv-list{flex:1;overflow-y:auto;padding:8px}
+.conv-item{padding:10px 12px;border-radius:8px;cursor:pointer;color:#444;font-size:.8rem;margin-bottom:2px;display:flex;align-items:center;gap:8px;transition:background .15s}
+.conv-item:hover{background:#f5f5f4}
+.conv-item.active{background:#fff7ed;color:#D97706;border:1px solid #fed7aa}
+.conv-item .conv-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conv-item .conv-delete{opacity:0;color:#999;cursor:pointer;font-size:.7rem;flex-shrink:0}
+.conv-item:hover .conv-delete{opacity:1}
+.conv-item .conv-delete:hover{color:#ef4444}
+
+/* Right Sidebar - Mode & Persona */
+.mode-sidebar{width:240px;background:#f8fafc;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;border-left:1px solid #e5e5e5;padding:16px;gap:16px}
+.mode-sidebar h4{font-size:.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 8px}
+
+/* Mode Cards */
+.mode-card{background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:16px;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;gap:8px}
+.mode-card:hover{border-color:#cbd5e1;transform:translateY(-2px)}
+.mode-card.active{border-color:#1e3a5f;background:#f1f5f9}
+.mode-card .mode-icon{font-size:1.5rem}
+.mode-card .mode-title{font-size:.9rem;font-weight:600;color:#1e293b}
+.mode-card .mode-desc{font-size:.75rem;color:#64748b;line-height:1.4}
+.mode-card .mode-model{font-size:.7rem;color:#1e3a5f;font-weight:600;background:#e2e8f0;padding:4px 8px;border-radius:20px;align-self:flex-start;margin-top:4px}
+.mode-card.active .mode-model{background:#1e3a5f;color:#fff}
+
+/* Persona Section */
+.persona-section{margin-top:8px}
+.persona-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px;cursor:pointer;transition:all .15s;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.persona-card:hover{border-color:#cbd5e1;background:#f8fafc}
+.persona-card.active{border-color:#D97706;background:#fff7ed}
+.persona-card .persona-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;background:#f1f5f9}
+.persona-card.active .persona-icon{background:#fed7aa}
+.persona-card .persona-info{flex:1}
+.persona-card .persona-name{font-size:.85rem;font-weight:600;color:#1e293b}
+.persona-card .persona-desc{font-size:.7rem;color:#64748b}
+
+/* Main Chat Area */
+.chat-main{flex:1;display:flex;flex-direction:column;background:#FAFAF9;min-width:0}
+.chat-header{padding:12px 20px;border-bottom:1px solid #e5e5e5;display:flex;align-items:center;gap:12px;flex-shrink:0;background:#fff}
+.chat-header .current-mode{display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:600;color:#1e3a5f;background:#f1f5f9;padding:6px 12px;border-radius:20px}
+.chat-header .current-persona{font-size:.8rem;color:#64748b;margin-left:auto}
+
+.messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
+.message{max-width:80%;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.message.user{align-self:flex-end}
+.message.assistant{align-self:flex-start}
+.message .bubble{padding:12px 16px;border-radius:16px;font-size:.9rem;line-height:1.5;word-wrap:break-word}
+.message.user .bubble{background:#D97706;color:#fff;border-bottom-right-radius:4px}
+.message.assistant .bubble{background:#fff;color:#1a1a1a;border:1px solid #e5e5e5;border-bottom-left-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.message .proof-badge{margin-top:6px;display:flex;align-items:center;gap:6px}
+
+.chat-input-area{padding:16px 20px;border-top:1px solid #e5e5e5;flex-shrink:0;background:#fff}
+.input-row{display:flex;gap:8px;align-items:flex-end}
+.input-row textarea{flex:1;border:1px solid #d4d4d4;border-radius:12px;padding:10px 14px;font-size:.9rem;font-family:Inter,sans-serif;resize:none;max-height:120px;min-height:44px;line-height:1.4;outline:none;transition:border-color .15s}
+.input-row textarea:focus{border-color:#D97706}
+.input-row .btn-send{background:#D97706;color:#fff;border:none;border-radius:12px;width:44px;height:44px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s}
+.input-row .btn-send:hover{background:#b45309}
+.input-row .btn-send:disabled{background:#d4d4d4;cursor:not-allowed}
+.btn-upload{background:none;border:1px solid #d4d4d4;border-radius:12px;width:44px;height:44px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#666;transition:all .15s}
+.btn-upload:hover{border-color:#D97706;color:#D97706}
+
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#aaa;gap:12px}
+
+/* Loading Animation */
+.loading-dots{display:flex;gap:4px;padding:12px 16px;background:#fff;border:1px solid #e5e5e5;border-radius:16px;border-bottom-left-radius:4px}
+.loading-dots span{width:8px;height:8px;background:#d4d4d4;border-radius:50%;animation:loadingDot 1.4s infinite ease-in-out both}
+.loading-dots span:nth-child(1){animation-delay:-0.32s}
+.loading-dots span:nth-child(2){animation-delay:-0.16s}
+@keyframes loadingDot{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
+
+.proof-badge{cursor:pointer}
+.proof-badge:hover{opacity:.8}
+.proof-details{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.2);z-index:1000;max-width:400px;width:90%}
+.proof-details.show{display:block}
+.proof-details h4{margin:0 0 12px;font-size:1rem;color:#1a1a1a}
+.proof-details p{margin:0 0 8px;font-size:.8rem;color:#666}
+.proof-details code{font-family:monospace;font-size:.75rem;background:#f5f5f4;padding:2px 6px;border-radius:4px}
+.proof-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:999}
+.proof-overlay.show{display:block}
+
+.rag-toggle{display:flex;align-items:center;gap:8px;padding:8px 0;font-size:.8rem;color:#64748b}
+.rag-toggle input[type="checkbox"]{cursor:pointer}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Conversation Sidebar -->
+<div class="chat-wrapper">
+  <aside class="conv-sidebar">
+    <div class="conv-sidebar-header">
+      <h3>History</h3>
+      <button class="btn-new-chat" onclick="startNewChat()">+ New</button>
+    </div>
+    <div class="conv-list" id="convList"></div>
+    <div style="padding:12px;border-top:1px solid #e5e5e5">
+      <button class="btn-import" onclick="document.getElementById('fileInput').click()" style="background:none;border:1px solid #d4d4d4;color:#666;border-radius:8px;padding:6px 12px;font-size:.75rem;cursor:pointer;width:100%">📎 Import Doc</button>
+      <input type="file" id="fileInput" style="display:none" multiple accept=".pdf,.txt,.md,.doc,.docx" onchange="handleFileImport(this)">
+    </div>
+  </aside>
+
+  <!-- Main Chat Area -->
+  <main class="chat-main">
+    <header class="chat-header">
+      <div class="current-mode" id="currentModeBadge">
+        <span id="modeIcon">🔍</span>
+        <span id="modeText">Deep Research</span>
+      </div>
+      <div class="current-persona" id="currentPersonaDisplay">Default Assistant</div>
+    </header>
+
+    <div class="messages" id="messages">
+      <div class="empty-state">
+        <div style="font-size:3rem">👻</div>
+        <div style="font-size:1.1rem;color:#666;font-weight:500">How can I help you today?</div>
+        <div style="font-size:.8rem;color:#999">Select a mode on the right to get started</div>
+      </div>
+    </div>
+
+    <div class="chat-input-area">
+      <div class="input-row">
+        <button class="btn-upload" onclick="document.getElementById('fileInput').click()" title="Upload document">📎</button>
+        <textarea id="messageInput" placeholder="Message..." rows="1" onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
+        <button class="btn-send" id="sendBtn" onclick="sendMessage()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        </button>
+      </div>
+      <div class="rag-toggle">
+        <input type="checkbox" id="ragToggle" checked>
+        <label for="ragToggle">🔒 ADS-Protected RAG (documents secured with cryptographic zeroization)</label>
+      </div>
+      <div style="font-size: .7rem; color: #64748b; margin-top: 4px;">
+        Documents embedded, stored, and retrieved with hardware-agnostic cryptographic zeroization on any NVIDIA GPU
+      </div>
+    </div>
+  </main>
+
+  <!-- Mode & Persona Sidebar -->
+  <aside class="mode-sidebar">
+    <div>
+      <h4>Mode</h4>
+      <div class="mode-card active" id="modeDeepResearch" onclick="setMode('deep-research')">
+        <div class="mode-icon">🔍</div>
+        <div class="mode-title">Deep Research</div>
+        <div class="mode-desc">Complex analysis, clinical reasoning, legal strategy</div>
+        <div class="mode-model">DeepSeek R1:70B</div>
+      </div>
+      <div class="mode-card" id="modeFastAnswers" onclick="setMode('fast-answers')">
+        <div class="mode-icon">⚡</div>
+        <div class="mode-title">Fast Answers</div>
+        <div class="mode-desc">Quick responses, summaries, operational queries</div>
+        <div class="mode-model">Llama 4 Scout</div>
+      </div>
+    </div>
+
+    <div class="persona-section">
+      <h4>Persona</h4>
+      <div class="persona-card active" id="personaDefault" onclick="setPersona('default')">
+        <div class="persona-icon">🤖</div>
+        <div class="persona-info">
+          <div class="persona-name">Default</div>
+          <div class="persona-desc">Balanced AI assistant</div>
+        </div>
+      </div>
+      <div class="persona-card" id="personaArdyn" onclick="setPersona('ardyn')">
+        <div class="persona-icon">👻</div>
+        <div class="persona-info">
+          <div class="persona-name">Ardyn</div>
+          <div class="persona-desc">Technical, direct, security-focused</div>
+        </div>
+      </div>
+      {% if user_vertical == 'healthcare' %}
+      <div class="persona-card" id="personaClinical" onclick="setPersona('clinical')">
+        <div class="persona-icon">🏥</div>
+        <div class="persona-info">
+          <div class="persona-name">Clinical</div>
+          <div class="persona-desc">Evidence-based medical reasoning</div>
+        </div>
+      </div>
+      {% endif %}
+      {% if user_vertical == 'legal' %}
+      <div class="persona-card" id="personaCounsel" onclick="setPersona('counsel')">
+        <div class="persona-icon">⚖️</div>
+        <div class="persona-info">
+          <div class="persona-name">Counsel</div>
+          <div class="persona-desc">Legal analysis with citations</div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </aside>
+</div>
+
+<!-- Proof Details Modal -->
+<div class="proof-overlay" id="proofOverlay" onclick="hideProof()"></div>
+<div class="proof-details" id="proofDetails">
+  <h4>🔐 Zeroization Proof</h4>
+  <p><strong>Session ID:</strong> <code id="proofSession">-</code></p>
+  <p><strong>Data Destroyed:</strong> <span id="proofTime">-</span></p>
+  <p><strong>Verification Hash:</strong> <code id="proofHash">-</code></p>
+  <p style="font-size:.75rem;color:#999;margin-top:12px">This proof can be independently verified against the attestation ledger.</p>
+  <button onclick="hideProof()" style="margin-top:16px;padding:8px 16px;background:#D97706;color:#fff;border:none;border-radius:8px;cursor:pointer">Close</button>
+</div>
+
+<script>
+// API helper
+async function api(url, opts = {}) {
+  const res = await fetch(url, opts);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// State
+let currentMode = 'deep-research';
+let currentModel = 'deepseek-r1:70b';
+let currentPersona = 'default';
+let conversationId = null;
+let isLoading = false;
+
+// Mode switching
+function setMode(mode) {
+  currentMode = mode;
+  
+  // Update UI
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
+  document.getElementById(mode === 'deep-research' ? 'modeDeepResearch' : 'modeFastAnswers').classList.add('active');
+  
+  // Set model automatically
+  if (mode === 'deep-research') {
+    currentModel = 'deepseek-r1:70b';
+    document.getElementById('modeIcon').textContent = '🔍';
+    document.getElementById('modeText').textContent = 'Deep Research';
+  } else {
+    currentModel = 'llama4:scout';
+    document.getElementById('modeIcon').textContent = '⚡';
+    document.getElementById('modeText').textContent = 'Fast Answers';
+  }
+}
+
+// Persona switching
+function setPersona(persona) {
+  currentPersona = persona;
+  
+  // Update UI
+  document.querySelectorAll('.persona-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('persona' + persona.charAt(0).toUpperCase() + persona.slice(1)).classList.add('active');
+  
+  // Update display
+  const names = {default: 'Default Assistant', ardyn: 'Ardyn', clinical: 'Clinical Assistant', counsel: 'Counsel'};
+  document.getElementById('currentPersonaDisplay').textContent = names[persona] || persona;
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function handleKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+async function sendMessage() {
+  const input = document.getElementById('messageInput');
+  const text = input.value.trim();
+  if (!text || isLoading) return;
+  
+  isLoading = true;
+  input.value = '';
+  input.style.height = '44px';
+  document.getElementById('sendBtn').disabled = true;
+  
+  // Add user message
+  addMessage(text, 'user');
+  
+  // Show loading
+  showLoading();
+  
+  try {
+    const ragEnabled = document.getElementById('ragToggle').checked;
+    
+    const res = await fetch('/api/infer', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        prompt: text,
+        model: currentModel,
+        persona: currentPersona,
+        use_rag: ragEnabled,
+        mode: currentMode,
+        conversation_id: conversationId
+      })
+    });
+    
+    const data = await res.json();
+    hideLoading();
+    
+    if (data.error) {
+      addMessage('Error: ' + data.error, 'assistant', null, true);
+    } else {
+      addMessage(data.response, 'assistant', data.proof, false, data.sources);
+      if (data.conversation_id) conversationId = data.conversation_id;
+    }
+  } catch (e) {
+    hideLoading();
+    addMessage('Network error. Please try again.', 'assistant', null, true);
+  }
+  
+  isLoading = false;
+  document.getElementById('sendBtn').disabled = false;
+  loadConversations();
+}
+
+function addMessage(text, role, proof = null, isError = false, sources = null) {
+  const container = document.getElementById('messages');
+  
+  // Remove empty state if present
+  const emptyState = container.querySelector('.empty-state');
+  if (emptyState) emptyState.remove();
+  
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'message ' + role;
+  
+  let proofBadge = '';
+  if (proof && role === 'assistant') {
+    proofBadge = `<div class="proof-badge" onclick="showProof('${proof.session_id}', '${proof.destroyed_at}', '${proof.hash}')">
+      <span style="font-size:.7rem;color:#666">🔐 Zeroized</span>
+    </div>`;
+  }
+  
+  // Build sources/citations HTML
+  let sourcesHtml = '';
+  if (sources && sources.length > 0 && role === 'assistant') {
+    const sourcesList = sources.map((s, i) => 
+      `<div style="font-size:.75rem;color:#64748b;margin:2px 0;">[${i+1}] ${escapeHtml(s.title || s.id || 'Source')}</div>`
+    ).join('');
+    sourcesHtml = `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e5e5;">${sourcesList}</div>`;
+  }
+  
+  msgDiv.innerHTML = `
+    <div class="bubble" style="${isError ? 'background:#fef2f2;border-color:#fecaca;color:#991b1b' : ''}">${escapeHtml(text)}${sourcesHtml}</div>
+    ${proofBadge}
+  `;
+  
+  container.appendChild(msgDiv);
+  container.scrollTop = container.scrollHeight;
+}
+
+function showLoading() {
+  const container = document.getElementById('messages');
+  const emptyState = container.querySelector('.empty-state');
+  if (emptyState) emptyState.remove();
+  
+  const loadingDiv = document.createElement('div');
+  loadingDiv.className = 'message assistant loading';
+  loadingDiv.id = 'loadingMsg';
+  loadingDiv.innerHTML = `
+    <div class="loading-dots">
+      <span></span><span></span><span></span>
+    </div>
+  `;
+  container.appendChild(loadingDiv);
+  container.scrollTop = container.scrollHeight;
+}
+
+function hideLoading() {
+  const loading = document.getElementById('loadingMsg');
+  if (loading) loading.remove();
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function showProof(sessionId, time, hash) {
+  document.getElementById('proofSession').textContent = sessionId || '-';
+  document.getElementById('proofTime').textContent = time ? new Date(time).toLocaleString() : '-';
+  document.getElementById('proofHash').textContent = hash ? hash.substring(0, 32) + '...' : '-';
+  document.getElementById('proofOverlay').classList.add('show');
+  document.getElementById('proofDetails').classList.add('show');
+}
+
+function hideProof() {
+  document.getElementById('proofOverlay').classList.remove('show');
+  document.getElementById('proofDetails').classList.remove('show');
+}
+
+async function loadConversations() {
+  try {
+    const res = await fetch('/api/conversations');
+    const data = await res.json();
+    
+    const list = document.getElementById('convList');
+    if (!data.conversations || data.conversations.length === 0) {
+      list.innerHTML = '<div style="padding:20px;color:#999;font-size:.8rem;text-align:center">No conversations yet</div>';
+      return;
+    }
+    
+    list.innerHTML = data.conversations.map(c => `
+      <div class="conv-item ${c.id === conversationId ? 'active' : ''}" onclick="loadConversation('${c.id}')">
+        <span class="conv-title">${escapeHtml(c.title || 'Untitled')}</span>
+        <span class="conv-delete" onclick="event.stopPropagation();deleteConversation('${c.id}')">×</span>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('Failed to load conversations:', e);
+  }
+}
+
+async function loadConversation(id) {
+  conversationId = id;
+  try {
+    const res = await fetch(`/api/conversations/${id}`);
+    const data = await res.json();
+    
+    const container = document.getElementById('messages');
+    container.innerHTML = '';
+    
+    if (data.messages) {
+      data.messages.forEach(m => {
+        addMessage(m.content, m.role, m.proof);
+      });
+    }
+    
+    loadConversations();
+  } catch (e) {
+    console.error('Failed to load conversation:', e);
+  }
+}
+
+function startNewChat() {
+  conversationId = null;
+  document.getElementById('messages').innerHTML = `
+    <div class="empty-state">
+      <div style="font-size:3rem">👻</div>
+      <div style="font-size:1.1rem;color:#666;font-weight:500">How can I help you today?</div>
+      <div style="font-size:.8rem;color:#999">Select a mode on the right to get started</div>
+    </div>
+  `;
+  loadConversations();
+}
+
+async function deleteConversation(id) {
+  if (!confirm('Delete this conversation?')) return;
+  try {
+    await fetch(`/api/conversations/${id}`, {method: 'DELETE'});
+    if (conversationId === id) startNewChat();
+    else loadConversations();
+  } catch (e) {
+    console.error('Failed to delete:', e);
+  }
+}
+
+async function handleFileImport(input) {
+  if (!input.files.length) return;
+  
+  const formData = new FormData();
+  for (const file of input.files) {
+    formData.append('files', file);
+  }
+  
+  try {
+    const res = await fetch('/api/documents/upload', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      addMessage(`📎 Uploaded ${input.files.length} document(s) to your knowledge base.`, 'assistant');
+    }
+  } catch (e) {
+    console.error('Upload failed:', e);
+  }
+  
+  input.value = '';
+}
+
+// Init
+loadConversations();
+</script>
+{% endblock %}

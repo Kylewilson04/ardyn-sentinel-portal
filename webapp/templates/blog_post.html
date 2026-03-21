@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ post.title }} — Ardyn Blog</title>
+<meta name="description" content="{{ post.description }}">
+<meta property="og:title" content="{{ post.title }}">
+<meta property="og:description" content="{{ post.description }}">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://ardyn.ai/blog/{{ post.slug }}">
+<meta property="article:published_time" content="{{ post.date.isoformat() }}">
+<meta property="article:author" content="{{ post.author }}">
+{% for tag in post.tags %}<meta property="article:tag" content="{{ tag }}">{% endfor %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',system-ui,sans-serif;background:#FAFAF9;color:#1a1a1a;-webkit-font-smoothing:antialiased}
+  .article-nav{max-width:680px;margin:0 auto;padding:40px 24px 0;font-size:0.875rem}
+  .article-nav a{color:#D97706;text-decoration:none;font-weight:500}
+  .article-nav a:hover{text-decoration:underline}
+  .article-header{max-width:680px;margin:0 auto;padding:32px 24px 0}
+  .article-header h1{font-size:2rem;font-weight:700;letter-spacing:-0.03em;line-height:1.2;color:#111}
+  .article-meta{margin-top:12px;font-size:0.85rem;color:#999}
+  .article-tags{margin-top:12px}
+  .tag{display:inline-block;font-size:0.7rem;background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:99px;margin-right:4px;font-weight:500}
+  .article-body{max-width:680px;margin:0 auto;padding:32px 24px 80px;font-size:1.05rem;line-height:1.75;color:#333}
+  .article-body h2{font-size:1.45rem;font-weight:700;margin:2em 0 0.6em;color:#111;letter-spacing:-0.02em}
+  .article-body h3{font-size:1.2rem;font-weight:600;margin:1.6em 0 0.5em;color:#222}
+  .article-body h4{font-size:1.05rem;font-weight:600;margin:1.4em 0 0.4em;color:#333}
+  .article-body p{margin-bottom:1.2em}
+  .article-body a{color:#D97706;text-decoration:underline}
+  .article-body strong{font-weight:600;color:#111}
+  .article-body blockquote{border-left:3px solid #D97706;padding:0.5em 1em;margin:1.5em 0;background:#fff;border-radius:0 8px 8px 0;color:#555;font-style:italic}
+  .article-body ul,.article-body ol{margin:1em 0 1.2em 1.5em}
+  .article-body li{margin-bottom:0.4em}
+  .article-body code{font-family:'JetBrains Mono',monospace;font-size:0.88em;background:#f0ece4;padding:2px 6px;border-radius:4px}
+  .article-body pre{background:#1a1a1a;color:#e0e0e0;padding:20px;border-radius:10px;overflow-x:auto;margin:1.5em 0;font-size:0.88rem;line-height:1.6}
+  .article-body pre code{background:none;color:inherit;padding:0}
+  .article-body hr{border:none;border-top:1px solid #e8e5e0;margin:2em 0}
+</style>
+</head>
+<body>
+<div class="article-nav">
+  <a href="/blog">← All Posts</a>
+</div>
+<div class="article-header">
+  <h1>{{ post.title }}</h1>
+  <div class="article-meta">{{ post.date.strftime('%B %d, %Y') }} · {{ post.author }}</div>
+  <div class="article-tags">
+    {% for tag in post.tags %}<span class="tag">{{ tag }}</span>{% endfor %}
+  </div>
+</div>
+<div class="article-body">
+  {{ post.html | safe }}
+</div>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Error - Ardyn Intelligence{% endblock %}
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+  <div class="max-w-md w-full text-center">
+    <div class="mb-8">
+      <div class="text-6xl mb-4">⚠️</div>
+      <h1 class="text-3xl font-bold text-slate-800 mb-2">Something went wrong</h1>
+      <p class="text-slate-600">{{ error or "An unexpected error occurred. Please try again." }}</p>
+    </div>
+    <div class="space-y-3">
+      <a href="/" class="inline-block w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 transition">
+        Go Home
+      </a>
+      <a href="/login" class="inline-block w-full bg-white text-blue-600 border border-blue-600 font-semibold py-3 px-6 rounded-lg hover:bg-blue-50 transition">
+        Back to Login
+      </a>
+    </div>
+    <p class="mt-8 text-sm text-slate-500">
+      If this problem persists, please contact support.
+    </p>
+  </div>
+</div>
+{% endblock %}

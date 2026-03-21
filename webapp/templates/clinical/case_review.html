@@ -1,0 +1,170 @@
+{% extends "enterprise_base.html" %}
+{% block title %}Case Review — Ardyn Healthcare{% endblock %}
+{% block page_title %}Case Review{% endblock %}
+
+{% block content %}
+<div class="clinical-container">
+  <div class="clinical-hero" style="background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); border-radius: 20px; padding: 40px; margin-bottom: 32px; color: white;">
+    <h2 style="font-size: 2rem; font-weight: 600; margin-bottom: 12px;">📋 Case Review</h2>
+    <p style="font-size: 1.125rem; color: rgba(255,255,255,0.8);">AI-assisted differential diagnosis with cited evidence</p>
+    <div class="badge" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 50px; font-size: 0.875rem; color: #fff; margin-top: 16px;" id="case-status">
+      Loading...
+    </div>
+  </div>
+
+  <div id="case-content">
+    <!-- Case details loaded here -->
+  </div>
+
+  <!-- AI Differential Section -->
+  <div class="card" style="margin-top: 24px; border-left: 4px solid #1e3a5f;">
+    <h3 style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M12 12h.01"/></svg>
+      AI Differential Diagnosis
+    </h3>
+    <div id="differential-content">
+      <p style="color: #64748b; text-align: center; padding: 48px;">
+        <button class="btn btn-primary" onclick="runDifferential()">Run Differential Analysis</button>
+      </p>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div style="display: flex; gap: 16px; margin-top: 24px;">
+    <button class="btn btn-outline" onclick="closeCase()">Close Case</button>
+    <a href="/clinical/portal/patients" class="btn btn-outline">Back to Patients</a>
+  </div>
+</div>
+
+<script>
+const caseId = '{{ case_id }}';
+
+async function loadCase() {
+  try {
+    const r = await api(`/api/clinical/cases/${caseId}`);
+    
+    // Update status badge
+    const statusBadge = document.getElementById('case-status');
+    if (r.differential_diagnosis) {
+      statusBadge.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/></svg> Analysis Complete`;
+      showDifferential(r);
+    } else {
+      statusBadge.innerHTML = `Case Open — Awaiting Analysis`;
+    }
+    
+    // Build case details
+    document.getElementById('case-content').innerHTML = `
+      <div class="card" style="margin-bottom: 24px;">
+        <div style="display: grid; gap: 24px;">
+          <div>
+            <label style="font-size: 0.875rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Chief Complaint</label>
+            <p style="font-size: 1.125rem; margin-top: 8px;">${r.presenting_complaint || 'Not recorded'}</p>
+          </div>
+          <div>
+            <label style="font-size: 0.875rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Symptoms</label>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+              ${(r.symptoms || []).map(s => `<span style="background: #f1f5f9; padding: 4px 12px; border-radius: 20px; font-size: 0.875rem;">${s}</span>`).join('')}
+            </div>
+          </div>
+          ${r.vitals && Object.keys(r.vitals).length > 0 ? `
+          <div>
+            <label style="font-size: 0.875rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Vital Signs</label>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-top: 8px;">
+              ${r.vitals.temperature ? `<div style="background: #f8fafc; padding: 12px; border-radius: 8px;"><div style="font-size: 0.75rem; color: #64748b;">Temperature</div><div style="font-weight: 500;">${r.vitals.temperature}°F</div></div>` : ''}
+              ${r.vitals.heart_rate ? `<div style="background: #f8fafc; padding: 12px; border-radius: 8px;"><div style="font-size: 0.75rem; color: #64748b;">Heart Rate</div><div style="font-weight: 500;">${r.vitals.heart_rate} BPM</div></div>` : ''}
+              ${r.vitals.blood_pressure_sys ? `<div style="background: #f8fafc; padding: 12px; border-radius: 8px;"><div style="font-size: 0.75rem; color: #64748b;">Blood Pressure</div><div style="font-weight: 500;">${r.vitals.blood_pressure_sys}/${r.vitals.blood_pressure_dia}</div></div>` : ''}
+              ${r.vitals.oxygen_saturation ? `<div style="background: #f8fafc; padding: 12px; border-radius: 8px;"><div style="font-size: 0.75rem; color: #64748b;">O2 Saturation</div><div style="font-weight: 500;">${r.vitals.oxygen_saturation}%</div></div>` : ''}
+            </div>
+          </div>
+          ` : ''}
+          ${r.labs && r.labs.length > 0 ? `
+          <div>
+            <label style="font-size: 0.875rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Lab Results</label>
+            <div style="margin-top: 8px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+              ${r.labs.map(lab => `
+                <div style="display: flex; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; ${lab.flag === 'CRITICAL' ? 'background: #fef2f2;' : lab.flag === 'HIGH' || lab.flag === 'LOW' ? 'background: #fff7ed;' : ''}">
+                  <span>${lab.test_name}</span>
+                  <span style="font-weight: 500;">${lab.value} ${lab.unit} ${lab.flag ? `<span style="color: ${lab.flag === 'CRITICAL' ? '#dc2626' : '#ea580c'}; font-size: 0.75rem;">[${lab.flag}]</span>` : ''}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    document.getElementById('case-content').innerHTML = `
+      <div class="card" style="text-align: center; padding: 48px; color: #dc2626;">
+        <p>Failed to load case</p>
+        <p style="font-size: 0.875rem;">${e.message}</p>
+      </div>
+    `;
+  }
+}
+
+function showDifferential(caseData) {
+  const confidence = caseData.confidence_score ? Math.round(caseData.confidence_score * 100) : 0;
+  const sources = caseData.cited_sources || [];
+  
+  document.getElementById('differential-content').innerHTML = `
+    <div style="background: #f8fafc; border-radius: 12px; padding: 24px;">
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+        <div style="background: #1e3a5f; color: white; padding: 8px 16px; border-radius: 20px; font-weight: 600;">
+          Confidence: ${confidence}%
+        </div>
+        <span style="color: #64748b; font-size: 0.875rem;">AI-generated differential with cited evidence</span>
+      </div>
+      <div style="white-space: pre-wrap; line-height: 1.6;">${caseData.differential_diagnosis || 'No differential generated'}</div>
+      ${sources.length > 0 ? `
+      <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
+        <h4 style="font-size: 0.875rem; color: #64748b; margin-bottom: 12px;">CITED SOURCES</h4>
+        <ul style="list-style: none; padding: 0;">
+          ${sources.map((s, i) => `<li style="padding: 8px 0; font-size: 0.875rem;">[${i + 1}] ${s}</li>`).join('')}
+        </ul>
+      </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+async function runDifferential() {
+  const btn = document.querySelector('#differential-content button');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Analyzing...';
+  }
+  
+  try {
+    const r = await api(`/api/clinical/cases/${caseId}/differential`, {
+      method: 'POST'
+    });
+    
+    // Reload case to show differential
+    loadCase();
+  } catch(e) {
+    document.getElementById('differential-content').innerHTML = `
+      <p style="color: #dc2626; text-align: center;">Failed to run differential: ${e.message}</p>
+      <p style="text-align: center;"><button class="btn btn-primary" onclick="runDifferential()">Try Again</button></p>
+    `;
+  }
+}
+
+async function closeCase() {
+  if (!confirm('Close this case? Patient data will be cryptographically destroyed.')) return;
+  
+  try {
+    await api(`/api/clinical/cases/${caseId}/close`, {
+      method: 'POST'
+    });
+    
+    alert('Case closed. Data destroyed.');
+    location.href = '/clinical/portal/patients';
+  } catch(e) {
+    alert('Failed to close case: ' + e.message);
+  }
+}
+
+loadCase();
+</script>
+{% endblock %}

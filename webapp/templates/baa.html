@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Business Associate Agreement - Ardyn Intelligence{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+    <div class="bg-white rounded-lg shadow-lg p-8">
+        <h1 class="text-3xl font-bold mb-6 text-slate-800">Business Associate Agreement</h1>
+        
+        {% if error %}
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+            {{ error }}
+        </div>
+        {% endif %}
+        
+        {% if baa_signed %}
+        <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-6">
+            <h2 class="font-semibold mb-2">✅ BAA Signed</h2>
+            <p>You have already signed a Business Associate Agreement.</p>
+            <p class="text-sm mt-2">Signed on: {{ baa_data.signed_at }}</p>
+            <a href="/clinical" class="inline-block mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                Go to Clinical Portal
+            </a>
+        </div>
+        {% else %}
+        <div class="prose max-w-none mb-8">
+            <h2 class="text-xl font-semibold mb-4">HIPAA Business Associate Agreement</h2>
+            
+            <div class="bg-slate-50 p-6 rounded-lg border border-slate-200 mb-6 max-h-96 overflow-y-auto">
+                <h3 class="font-semibold mb-2">BUSINESS ASSOCIATE AGREEMENT</h3>
+                <p class="text-sm text-slate-600 mb-4">
+                    This Business Associate Agreement ("BAA") is entered into between the Covered Entity 
+                    and Ardyn Intelligence ("Business Associate") to ensure compliance with the Health 
+                    Insurance Portability and Accountability Act (HIPAA) and its implementing regulations.
+                </p>
+                
+                <h4 class="font-semibold mt-4 mb-2">1. PERMITTED USES AND DISCLOSURES</h4>
+                <p class="text-sm text-slate-600">
+                    Business Associate may use or disclose Protected Health Information (PHI) only as 
+                    permitted by this Agreement or as Required by Law. Business Associate shall not use 
+                    or disclose PHI in any manner that would violate Subpart E of 45 CFR Part 164 if 
+                    done by Covered Entity.
+                </p>
+                
+                <h4 class="font-semibold mt-4 mb-2">2. SAFEGUARDS</h4>
+                <p class="text-sm text-slate-600">
+                    Business Associate shall use appropriate safeguards to prevent use or disclosure of 
+                    PHI other than as provided for by this Agreement. Business Associate implements 
+                    Technical Safeguards including encryption, access controls, and audit logging.
+                </p>
+                
+                <h4 class="font-semibold mt-4 mb-2">3. REPORTING</h4>
+                <p class="text-sm text-slate-600">
+                    Business Associate shall report to Covered Entity any use or disclosure of PHI not 
+                    provided for by this Agreement of which Business Associate becomes aware.
+                </p>
+                
+                <h4 class="font-semibold mt-4 mb-2">4. SUBCONTRACTORS</h4>
+                <p class="text-sm text-slate-600">
+                    Business Associate shall ensure that any subcontractors agree to the same restrictions 
+                    and conditions that apply to Business Associate with respect to PHI.
+                </p>
+                
+                <h4 class="font-semibold mt-4 mb-2">5. ACCESS AND AMENDMENT</h4>
+                <p class="text-sm text-slate-600">
+                    Business Associate shall provide access to PHI in a Designated Record Set and shall 
+                    amend PHI as required by 45 CFR § 164.526.
+                </p>
+                
+                <h4 class="font-semibold mt-4 mb-2">6. AUDIT CONTROLS</h4>
+                <p class="text-sm text-slate-600">
+                    Business Associate shall make internal practices, books, and records relating to the 
+                    use and disclosure of PHI available to Covered Entity for purposes of determining 
+                    compliance with this Agreement.
+                </p>
+                
+                <h4 class="font-semibold mt-4 mb-2">7. RETURN OR DESTRUCTION OF PHI</h4>
+                <p class="text-sm text-slate-600">
+                    Upon termination of this Agreement, Business Associate shall return or destroy all 
+                    PHI received from Covered Entity.
+                </p>
+                
+                <h4 class="font-semibold mt-4 mb-2">8. TERMINATION</h4>
+                <p class="text-sm text-slate-600">
+                    Covered Entity may terminate this Agreement if Business Associate violates a material 
+                    term of this Agreement.
+                </p>
+            </div>
+            
+            <form method="POST" action="/settings/baa" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">
+                        Covered Entity Name (Your Organization)
+                    </label>
+                    <input type="text" name="covered_entity_name" required
+                           class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="e.g., St. Mary's Hospital">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">
+                        Covered Entity Address
+                    </label>
+                    <textarea name="covered_entity_address" required rows="2"
+                              class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Full address of your organization"></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">
+                        Authorized Signatory Name
+                    </label>
+                    <input type="text" name="signatory_name" required
+                           class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="Your full name">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">
+                        Signatory Title
+                    </label>
+                    <input type="text" name="signatory_title" required
+                           class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="e.g., Chief Medical Officer">
+                </div>
+                
+                <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg mt-6">
+                    <label class="flex items-start">
+                        <input type="checkbox" required class="mt-1 mr-3">
+                        <span class="text-sm text-slate-700">
+                            I have read and agree to the Business Associate Agreement. I certify that 
+                            I am authorized to enter into this agreement on behalf of the Covered Entity 
+                            named above. I understand that this is a legally binding contract.
+                        </span>
+                    </label>
+                </div>
+                
+                <button type="submit" 
+                        class="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 transition">
+                    Sign BAA Agreement
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

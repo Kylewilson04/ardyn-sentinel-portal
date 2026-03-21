@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trust Dashboard — Ardyn Sentinel</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-card: #111827;
+      --bg-card-hover: #1a2332;
+      --border: #1e293b;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-gold: #f59e0b;
+      --accent-gold-dim: #b45309;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .hero-section {
+      text-align: center;
+      padding: 60px 20px 40px;
+      background: linear-gradient(180deg, #0a0e17 0%, #111827 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .hero-section h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+    .hero-section h1 span {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-section p {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 24px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-top: 24px;
+    }
+    .status-badge.online {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .status-badge.offline {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    .stat-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent-gold-dim);
+      background: var(--bg-card-hover);
+    }
+    .stat-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+    .stat-value.gold {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-sub {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+    .stat-icon {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 1.8rem;
+      opacity: 0.12;
+    }
+
+    .large-card {
+      grid-column: 1 / -1;
+      background: linear-gradient(135deg, #111827 0%, #1a2332 100%);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+    }
+    .large-card h3 {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+    .progress-bar {
+      height: 10px;
+      background: var(--border);
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--success), #34d399);
+      border-radius: 5px;
+      transition: width 1s ease;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+    }
+
+    .last-updated {
+      text-align: center;
+      padding: 30px;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      border-top: 1px solid var(--border);
+      margin-top: 20px;
+    }
+    .footer a {
+      color: var(--accent-gold);
+      text-decoration: none;
+    }
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      grid-column: 1 / -1;
+    }
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent-gold);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
+      .hero-section h1 { font-size: 1.8rem; }
+      .stat-value { font-size: 2rem; }
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .two-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="hero-section">
+    <h1>Sovereign <span>Trust</span> Dashboard</h1>
+    <p>Real-time transparency into Ardyn Sentinel's verifiable execution operations. Every DDC (Data Destruction Certificate) is cryptographically anchored.</p>
+    <div id="statusBadge" class="status-badge online">
+      <span class="status-dot"></span>
+      System Online
+    </div>
+  </div>
+
+  <div class="dashboard-grid" id="dashboard">
+    <div class="loading">
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <div class="last-updated" id="lastUpdated"></div>
+
+  <div class="footer">
+    Powered by <a href="https://ardyn.ai">Ardyn Intelligence</a> · 
+    <a href="https://api.ardyn.ai/v1/metrics/public">API</a> ·
+    <a href="https://ardyn.ai/docs">Documentation</a>
+  </div>
+
+  <script>
+    function fmt(n) {
+      if (n == null) return '—';
+      return n.toLocaleString();
+    }
+    function pct(n) {
+      if (n == null) return '—';
+      return n.toFixed(1) + '%';
+    }
+    function uptime(s) {
+      if (!s) return '—';
+      const d = Math.floor(s / 86400);
+      const h = Math.floor((s % 86400) / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      if (d > 0) return `${d}d ${h}h`;
+      if (h > 0) return `${h}h ${m}m`;
+      return `${m}m`;
+    }
+
+    async function load() {
+      try {
+        const resp = await fetch('/api/metrics/public');
+        const d = await resp.json();
+        // System is online if we got valid data (has ddc count or uptime)
+        const ok = d.total_ddcs_issued != null || d.gateway_uptime_seconds > 0;
+        
+        const badge = document.getElementById('statusBadge');
+        badge.className = ok ? 'status-badge online' : 'status-badge offline';
+        badge.innerHTML = '<span class="status-dot"></span>' + (ok ? ' System Online' : ' System Unavailable');
+
+        document.getElementById('dashboard').innerHTML = `
+          <div class="stat-card">
+            <span class="stat-icon">📜</span>
+            <div class="stat-label">DDCs Issued</div>
+            <div class="stat-value gold">${fmt(d.total_ddcs_issued)}</div>
+            <div class="stat-sub">Data Destruction Certificates</div>
+          </div>
+          
+          <div class="stat-card">
+            <span class="stat-icon">⚡</span>
+            <div class="stat-label">Total Jobs</div>
+            <div class="stat-value">${fmt(d.total_jobs)}</div>
+            <div class="stat-sub">Execution Requests</div>
+          </div>
+          
+          <div class="stat-card">
+            <span class="stat-icon">🛡️</span>
+            <div class="stat-label">Verified</div>
+            <div class="stat-value">${fmt(d.total_verified)}</div>
+            <div class="stat-sub">Sentinel Verifications</div>
+          </div>
+          
+          <div class="stat-card">
+            <span class="stat-icon">⏱️</span>
+            <div class="stat-label">Avg Latency</div>
+            <div class="stat-value">${d.avg_latency_seconds ? d.avg_latency_seconds + 's' : '—'}</div>
+            <div class="stat-sub">Response Time</div>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-icon">🔢</span>
+            <div class="stat-label">Monotonic Counter</div>
+            <div class="stat-value" style="font-size:1.8rem">${fmt(d.monotonic_counter)}</div>
+            <div class="stat-sub">Global Event Sequence</div>
+          </div>
+          
+          <div class="stat-card">
+            <span class="stat-icon">🖥️</span>
+            <div class="stat-label">Gateway Uptime</div>
+            <div class="stat-value" style="font-size:1.8rem">${uptime(d.gateway_uptime_seconds)}</div>
+            <div class="stat-sub">Since Last Restart</div>
+          </div>
+
+          <div class="large-card">
+            <h3>Verification Success Rate</h3>
+            <div class="stat-value" style="font-size:3rem">${d.verification_success_rate}%</div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:${d.verification_success_rate || 0}%"></div>
+            </div>
+            <div class="stat-sub" style="margin-top:12px">
+              ${fmt(d.verification_attempts)} attempts reached system
+              ${d.infrastructure_failures ? '· ' + fmt(d.infrastructure_failures) + ' infra failures excluded' : ''}
+            </div>
+          </div>
+
+          <div class="large-card">
+            <h3>Activity</h3>
+            <div class="two-col">
+              <div>
+                <div class="stat-value" style="font-size:2rem">${fmt(d.jobs_24h)}</div>
+                <div class="stat-sub">Jobs (24h)</div>
+              </div>
+              <div>
+                <div class="stat-value" style="font-size:2rem">${fmt(d.jobs_7d)}</div>
+                <div class="stat-sub">Jobs (7d)</div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('lastUpdated').textContent = 'Last updated: ' + new Date().toLocaleString();
+      } catch (e) {
+        console.error(e);
+        document.getElementById('dashboard').innerHTML = `
+          <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">
+            Unable to load metrics. Please try again later.
+          </div>
+        `;
+      }
+    }
+
+    load();
+    setInterval(load, 30000);
+  </script>
+</body>
+</html>

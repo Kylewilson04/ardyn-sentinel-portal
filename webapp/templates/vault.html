@@ -1,0 +1,162 @@
+{% extends "enterprise_base.html" %}
+{% block title %}Vault — Ardyn AI{% endblock %}
+{% block page_title %}Your Vault{% endblock %}
+{% block content %}
+<style>
+.vault-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
+.vault-card{background:#fff;border-radius:12px;padding:24px;border:1px solid #e5e5e5}
+.vault-card h3{margin:0 0 16px;font-size:1.1rem;color:#1a1a1a}
+.vault-card p{margin:0 0 16px;font-size:.9rem;color:#666;line-height:1.5}
+.vault-item{display:flex;align-items:center;gap:12px;padding:12px;background:#f8f9fa;border-radius:8px;margin-bottom:8px}
+.vault-item .icon{width:40px;height:40px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;border:1px solid #e5e5e5}
+.vault-item .info{flex:1}
+.vault-item .title{font-size:.9rem;font-weight:600;color:#1a1a1a}
+.vault-item .meta{font-size:.75rem;color:#888}
+.vault-item .actions{display:flex;gap:8px}
+.btn-sm{padding:6px 12px;border-radius:6px;font-size:.75rem;font-weight:600;cursor:pointer;border:none}
+.btn-primary{background:#D97706;color:#fff}
+.btn-primary:hover{background:#b45309}
+.btn-secondary{background:#f5f5f4;color:#666}
+.btn-secondary:hover{background:#e5e5e5}
+.encryption-badge{display:inline-flex;align-items:center;gap:6px;font-size:.75rem;color:#16a34a;background:#dcfce7;padding:4px 12px;border-radius:12px}
+</style>
+
+<div class="vault-container">
+  <!-- Saved AI Responses -->
+  <div class="vault-card">
+    <h3>💬 Saved AI Responses</h3>
+    <p>AI responses you've saved from conversations. All encrypted with your personal key.</p>
+    <div id="savedResponses">
+      <div class="vault-item">
+        <div class="icon">🤖</div>
+        <div class="info">
+          <div class="title">No saved responses yet</div>
+          <div class="meta">Save helpful AI responses from chat</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Imported Data -->
+  <div class="vault-card">
+    <h3>📥 Imported Data</h3>
+    <p>Data imported from other AI platforms. Parsed and encrypted in your vault.</p>
+    <div class="encryption-badge">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      End-to-end encrypted
+    </div>
+    <div style="margin-top:16px" id="importedData">
+      <div class="vault-item">
+        <div class="icon">📄</div>
+        <div class="info">
+          <div class="title">No imported data yet</div>
+          <div class="meta">Import from OpenAI, Claude, or Gemini</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <a href="/import" class="btn-sm btn-primary">Import Data</a>
+    </div>
+  </div>
+
+  <!-- Storage Stats -->
+  <div class="vault-card">
+    <h3>📊 Storage</h3>
+    <p>Your encrypted data usage.</p>
+    <div style="margin-top:16px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:.85rem">
+        <span>Conversations</span>
+        <span id="convCount">0</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:.85rem">
+        <span>Saved Responses</span>
+        <span id="savedCount">0</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.85rem">
+        <span>Imported Messages</span>
+        <span id="importedCount">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Encryption Info -->
+  <div class="vault-card">
+    <h3>🔐 Encryption</h3>
+    <p>Your data is encrypted using AES-256-GCM with keys derived from your account.</p>
+    <div style="margin-top:16px;font-size:.85rem;color:#666;line-height:1.6">
+      <p><strong>Key Derivation:</strong> PBKDF2-HMAC-SHA256</p>
+      <p><strong>Encryption:</strong> AES-256-GCM</p>
+      <p><strong>Storage:</strong> Server-side encrypted, zero-knowledge</p>
+    </div>
+  </div>
+</div>
+
+<script>
+async function loadVaultStats() {
+  try {
+    // Load conversations count
+    const convResp = await fetch('/api/conversations', { credentials: 'include' });
+    if (convResp.ok) {
+      const convData = await convResp.json();
+      document.getElementById('convCount').textContent = convData.conversations?.length || 0;
+    }
+    
+    // Load saved responses
+    const savedResp = await fetch('/api/vault/responses', { credentials: 'include' });
+    if (savedResp.ok) {
+      const savedData = await savedResp.json();
+      document.getElementById('savedCount').textContent = savedData.count || 0;
+      renderSavedResponses(savedData.responses);
+    }
+  } catch(e) {
+    console.error('Failed to load vault stats:', e);
+  }
+}
+
+function renderSavedResponses(responses) {
+  const container = document.getElementById('savedResponses');
+  if (!responses || responses.length === 0) {
+    container.innerHTML = `
+      <div class="vault-item">
+        <div class="icon">🤖</div>
+        <div class="info">
+          <div class="title">No saved responses yet</div>
+          <div class="meta">Save helpful AI responses from chat</div>
+        </div>
+      </div>`;
+    return;
+  }
+  
+  container.innerHTML = responses.map(r => `
+    <div class="vault-item" style="flex-direction:column;align-items:flex-start">
+      <div style="display:flex;align-items:center;gap:12px;width:100%">
+        <div class="icon">🤖</div>
+        <div class="info" style="flex:1">
+          <div class="title">${r.model || 'AI Response'}</div>
+          <div class="meta">${new Date(r.created_at * 1000).toLocaleString()}</div>
+        </div>
+        <button onclick="deleteResponse('${r.id}')" class="btn-sm btn-secondary">Delete</button>
+      </div>
+      <div style="margin-top:8px;padding:12px;background:#f5f5f4;border-radius:8px;font-size:.85rem;color:#444;width:100%">${r.message_content.substring(0, 200)}${r.message_content.length > 200 ? '...' : ''}</div>
+    </div>
+  `).join('');
+}
+
+async function deleteResponse(id) {
+  if (!confirm('Delete this saved response?')) return;
+  try {
+    const resp = await fetch(`/api/vault/responses/${id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+    if (resp.ok) {
+      loadVaultStats();
+    }
+  } catch(e) {
+    console.error('Failed to delete:', e);
+  }
+}
+
+loadVaultStats();
+</script>
+{% endblock %}

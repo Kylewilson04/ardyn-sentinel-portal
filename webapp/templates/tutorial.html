@@ -1,0 +1,380 @@
+{% extends "enterprise_base.html" %}
+{% block title %}Tutorial — Ardyn{% endblock %}
+{% block page_title %}Getting Started{% endblock %}
+{% block content %}
+<style>
+.tutorial-container{max-width:800px;margin:0 auto;padding:24px}
+.tutorial-nav{display:flex;gap:16px;margin-bottom:32px;border-bottom:2px solid #e5e5e5;padding-bottom:16px;overflow-x:auto}
+.tutorial-tab{cursor:pointer;padding:8px 16px;border-radius:8px;font-size:.95rem;color:#666;white-space:nowrap;transition:all .2s}
+.tutorial-tab:hover{background:#f5f5f4}
+.tutorial-tab.active{background:#D97706;color:#fff;font-weight:600}
+
+.tutorial-section{display:none}
+.tutorial-section.active{display:block;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+.feature-card{background:#fff;border:1px solid #e5e5e5;border-radius:16px;padding:24px;margin-bottom:20px;transition:all .2s}
+.feature-card:hover{border-color:#D97706;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.feature-card h3{display:flex;align-items:center;gap:12px;margin:0 0 12px;font-size:1.1rem;color:#1a1a1a}
+.feature-card h3 .icon{width:40px;height:40px;background:#f5f5f4;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem}
+.feature-card p{margin:0 0 16px;color:#666;line-height:1.6}
+.feature-card .tip{background:#f0fdf4;border-left:4px solid #22c55e;padding:12px 16px;border-radius:0 8px 8px 0;font-size:.9rem;color:#166534}
+.feature-card .tip strong{color:#14532d}
+
+.demo-box{background:#1a1a1a;color:#e5e5e5;padding:20px;border-radius:12px;font-family:'JetBrains Mono',monospace;font-size:.85rem;line-height:1.6;overflow-x:auto}
+.demo-box .comment{color:#888}
+.demo-box .prompt{color:#60a5fa}
+.demo-box .response{color:#4ade80}
+
+.step-list{counter-reset:step;padding:0;list-style:none}
+.step-list li{position:relative;padding-left:48px;margin-bottom:24px}
+.step-list li::before{counter-increment:step;content:counter(step);position:absolute;left:0;top:0;width:32px;height:32px;background:#D97706;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:.9rem}
+.step-list h4{margin:0 0 8px;font-size:1.05rem;color:#1a1a1a}
+.step-list p{margin:0;color:#666;line-height:1.6}
+
+.video-placeholder{background:#f5f5f4;border:2px dashed #d4d4d4;border-radius:16px;padding:48px;text-align:center;color:#666}
+.video-placeholder svg{margin-bottom:16px;opacity:.5}
+
+.nav-buttons{display:flex;justify-content:space-between;margin-top:32px;padding-top:24px;border-top:1px solid #e5e5e5}
+.btn-nav{padding:12px 24px;border-radius:10px;font-size:.95rem;font-weight:600;cursor:pointer;transition:all .2s;border:none}
+.btn-nav.prev{background:#f5f5f4;color:#666}
+.btn-nav.prev:hover{background:#e5e5e5}
+.btn-nav.next{background:#D97706;color:#fff}
+.btn-nav.next:hover{background:#b45309}
+.btn-skip{background:none;border:none;color:#999;font-size:.9rem;cursor:pointer;padding:12px}
+.btn-skip:hover{color:#666}
+</style>
+
+<div class="tutorial-container">
+  <div class="tutorial-nav">
+    <div class="tutorial-tab active" onclick="showSection('overview')">Overview</div>
+    <div class="tutorial-tab" onclick="showSection('chat')">Chat</div>
+    <div class="tutorial-tab" onclick="showSection('privacy')">Privacy</div>
+    <div class="tutorial-tab" onclick="showSection('models')">Models</div>
+    <div class="tutorial-tab" onclick="showSection('reminders')">🎯 Reminders</div>
+    <div class="tutorial-tab" onclick="showSection('import')">Import</div>
+    <div class="tutorial-tab" onclick="showSection('api')">API</div>
+  </div>
+
+  <!-- Overview -->
+  <div class="tutorial-section active" id="section-overview">
+    <h2 style="margin:0 0 24px;font-size:1.5rem">Welcome to Ardyn 👋</h2>
+    
+    <div class="feature-card">
+      <h3><span class="icon">🔒</span> What makes Ardyn different?</h3>
+      <p>Ardyn is a <strong>private AI assistant</strong> that puts you in control. Unlike ChatGPT, Claude, or Gemini, your conversations are encrypted, processed through the sovereign destruction pipeline, and never used to train models.</p>
+      <div class="tip"><strong>Key difference:</strong> Every inference generates a cryptographic proof that your data was destroyed after processing.</div>
+    </div>
+
+    <div class="feature-card">
+      <h3><span class="icon">⚡</span> Quick Start</h3>
+      <ol class="step-list">
+        <li>
+          <h4>Complete your profile</h4>
+          <p>Tell Ardyn about your preferences so it can assist you better. This information is encrypted and never shared.</p>
+        </li>
+        <li>
+          <h4>Start a conversation</h4>
+          <p>Go to Chat and select an AI model. All 5 models run on your private infrastructure.</p>
+        </li>
+        <li>
+          <h4>Import your history (optional)</h4>
+          <p>Bring conversations from OpenAI, Claude, or Gemini. Ardyn will learn your style without storing the raw data.</p>
+        </li>
+      </ol>
+    </div>
+
+    <div class="feature-card">
+      <h3><span class="icon">🎓</span> What you'll learn in this tutorial</h3>
+      <p>This guide covers Ardyn's key features: encrypted chat, destruction proofs, model selection, history import, and API access. Use the tabs above to explore each topic.</p>
+    </div>
+  </div>
+
+  <!-- Chat Features -->
+  <div class="tutorial-section" id="section-chat">
+    <h2 style="margin:0 0 24px;font-size:1.5rem">Chat Features 💬</h2>
+    
+    <div class="feature-card">
+      <h3><span class="icon">💭</span> Conversation Sidebar</h3>
+      <p>All your conversations are listed in the left sidebar. Click any conversation to continue where you left off. Conversations are automatically saved and encrypted.</p>
+      <div class="demo-box">
+<span class="comment">// Your conversations are encrypted server-side</span>
+<span class="prompt">You:</span> What's the weather like?
+<span class="response">Ardyn:</span> I don't have access to real-time weather data, but I can help you find a weather service or discuss climate topics.
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <h3><span class="icon">🤖</span> Model Selection</h3>
+      <p>Choose from 5 AI models optimized for different tasks:</p>
+      <ul style="margin:12px 0;padding-left:20px;color:#666;line-height:1.8">
+        <li><strong>Llama 3.3 70B</strong> — Balanced performance for general tasks</li>
+        <li><strong>DeepSeek R1 70B</strong> — Deep reasoning and analysis</li>
+        <li><strong>Qwen3 Coder 30B</strong> — Code generation and technical tasks</li>
+        <li><strong>Nomic Embed Text</strong> — Text embeddings and semantic search</li>
+        <li><strong>all-MiniLM</strong> — Fast, lightweight embeddings</li>
+      </ul>
+      <div class="tip"><strong>Tip:</strong> Switch models mid-conversation to compare responses or use the best model for specific tasks.</div>
+    </div>
+
+    <div class="feature-card">
+      <h3><span class="icon">📝</span> Message Actions</h3>
+      <p>Hover over any message to see actions:</p>
+      <ul style="margin:12px 0;padding-left:20px;color:#666;line-height:1.8">
+        <li><strong>Edit</strong> — Change your message and regenerate the response</li>
+        <li><strong>Copy</strong> — Copy message text to clipboard</li>
+        <li><strong>View Proof</strong> — See the cryptographic destruction proof</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Privacy & Security -->
+  <div class="tutorial-section" id="section-privacy">
+    <h2 style="margin:0 0 24px;font-size:1.5rem">Privacy & Security 🔐</h2>
+    
+    <div class="feature-card">
+      <h3><span class="icon">🛡️</span> Zero Trace Protocol</h3>
+      <p>Every conversation on Ardyn follows the Zero Trace Protocol:</p>
+      <ol class="step-list">
+        <li>
+          <h4>Encrypt</h4>
+          <p>Your message is encrypted before leaving your browser</p>
+        </li>
+        <li>
+          <h4>Process</h4>
+          <p>Processed within the sovereignty boundary</p>
+        </li>
+        <li>
+          <h4>Destroy</h4>
+          <p>Data is cryptographically shredded after inference</p>
+        </li>
+        <li>
+          <h4>Prove</h4>
+          <p>You receive a signed certificate of destruction</p>
+        </li>
+      </ol>
+    </div>
+
+    <div class="feature-card">
+      <h3><span class="icon">📜</span> Destruction Proofs</h3>
+      <p>Every inference generates a <strong>Death Certificate</strong> — cryptographic proof that your input data was processed and destroyed. View your proofs in the Proofs dashboard.</p>
+      <div class="demo-box">
+{
+  <span class="comment">"job_id": "ads-job-001",</span>
+  <span class="comment">"destruction_nonce": "a3f7d2e8...",</span>
+  <span class="comment">"zeroization_proof": "merkle_root_hash",</span>
+  <span class="comment">"timestamp": "2026-02-16T22:30:00Z",</span>
+  <span class="comment">"enclave_attestation": "signed_by_tee"</span>
+}
+      </div>
+      <div class="tip"><strong>Important:</strong> These proofs are verifiable by third parties. Your privacy is mathematically guaranteed, not just promised.</div>
+    </div>
+
+    <div class="feature-card">
+      <h3><span class="icon">🔒</span> Encrypted Storage</h3>
+      <p>Your conversations and profile are encrypted using AES-256-GCM. The encryption keys are derived from your user ID and never stored in plaintext.</p>
+    </div>
+  </div>
+
+  <!-- AI Models -->
+  <div class="tutorial-section" id="section-models">
+    <h2 style="margin:0 0 24px;font-size:1.5rem">AI Models 🧠</h2>
+    
+    <div class="feature-card">
+      <h3><span class="icon">🏠</span> Private Infrastructure</h3>
+      <p>All AI models run on your private infrastructure. Currently hosted on Azure Confidential Computing's H200 TEE (Trusted Execution Environment) — a secure enclave that ensures:</p>
+      <ul style="margin:12px 0;padding-left:20px;color:#666;line-height:1.8">
+        <li>Your data is never visible to the hosting provider</li>
+        <li>Models cannot be tampered with</li>
+        <li>Cryptographic attestation proves integrity</li>
+      </ul>
+    </div>
+
+    <div class="feature-card">
+      <h3><span class="icon">⚖️</span> Model Comparison</h3>
+      <table style="width:100%;border-collapse:collapse;margin-top:12px;font-size:.9rem">
+        <tr style="border-bottom:1px solid #e5e5e5">
+          <th style="text-align:left;padding:12px 8px">Model</th>
+          <th style="text-align:left;padding:12px 8px">Best For</th>
+          <th style="text-align:left;padding:12px 8px">Speed</th>
+        </tr>
+        <tr style="border-bottom:1px solid #f5f5f4">
+          <td style="padding:12px 8px"><strong>Llama 3.3 70B</strong></td>
+          <td style="padding:12px 8px">General conversation, analysis</td>
+          <td style="padding:12px 8color:#22c55e">⚡ Fast</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f5f5f4">
+          <td style="padding:12px 8px"><strong>DeepSeek R1 70B</strong></td>
+          <td style="padding:12px 8px">Complex reasoning, math, logic</td>
+          <td style="padding:12px 8px;color:#f59e0b">⏱️ Slower</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f5f5f4">
+          <td style="padding:12px 8px"><strong>Qwen3 Coder 30B</strong></td>
+          <td style="padding:12px 8px">Code, technical tasks</td>
+          <td style="padding:12px 8px;color:#22c55e">⚡ Fast</td>
+        </tr>
+        <tr>
+          <td style="padding:12px 8px"><strong>Nomic/all-MiniLM</strong></td>
+          <td style="padding:12px 8px">Embeddings, search</td>
+          <td style="padding:12px 8px;color:#22c55e">⚡ Fast</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Import History -->
+  <div class="tutorial-section" id="section-import">
+    <h2 style="margin:0 0 24px;font-size:1.5rem">Import History 📥</h2>
+    
+    <div class="feature-card">
+      <h3><span class="icon">📤</span> Bring Your Conversations</h3>
+      <p>Import chat history from OpenAI, Claude, or Gemini. Ardyn will:</p>
+      <ol class="step-list">
+        <li>
+          <h4>Analyze your style</h4>
+          <p>Extract communication patterns, topics, and preferences</p>
+        </li>
+        <li>
+          <h4>Create your profile</h4>
+          <p>Build a personalized profile (the raw data is discarded)</p>
+        </li>
+        <li>
+          <h4>Import conversations</h4>
+          <p>Store imported chats in your encrypted vault</p>
+        </li>
+      </ol>
+      <div class="tip"><strong>Privacy note:</strong> Raw import data is processed and immediately discarded. Only the derived profile and your chosen conversations are kept.</div>
+    </div>
+
+    <div class="feature-card">
+      <h3><span class="icon">📋</span> How to Export from Other Platforms</h3>
+      <p><strong>OpenAI:</strong> Settings → Data Export → Download conversations.json</p>
+      <p><strong>Claude:</strong> Settings → Account → Export Data</p>
+      <p><strong>Gemini:</strong> Google Takeout → Select Gemini Apps data</p>
+    </div>
+  </div>
+
+  <!-- API Access -->
+  <div class="tutorial-section" id="section-api">
+    <h2 style="margin:0 0 24px;font-size:1.5rem">API Access 🔌</h2>
+    
+    <div class="feature-card">
+      <h3><span class="icon">🔑</span> Your API Key</h3>
+      <p>Access Ardyn programmatically using your API key. Find it in Settings → API Key.</p>
+      <div class="demo-box">
+<span class="comment">// Example: Using Ardyn API with curl</span>
+curl -X POST https://ardyn.ai/api/inference \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    <span class="prompt">"prompt"</span>: "Hello, world!",
+    <span class="prompt">"model"</span>: "llama3.3:70b"
+  }'
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <h3><span class="icon">📚</span> SDKs Available</h3>
+      <p>Official SDKs for easy integration:</p>
+      <ul style="margin:12px 0;padding-left:20px;color:#666;line-height:1.8">
+        <li><strong>Python SDK:</strong> <code>pip install ardyn-ai</code></li>
+        <li><strong>JavaScript SDK:</strong> <code>npm install @ardyn-ai/sdk</code></li>
+      </ul>
+      <p style="margin-top:16px"><a href="/docs" style="color:#D97706;font-weight:500">View full API documentation →</a></p>
+    </div>
+  </div>
+
+  <!-- Personal Concierge & Reminders -->
+  <div class="tutorial-section" id="section-reminders">
+    <h2 style="margin:0 0 24px;font-size:1.5rem">Personal Concierge & iPhone Reminders 🎯</h2>
+    
+    <div class="feature-card">
+      <h3><span class="icon">🎯</span> Personal Concierge Persona</h3>
+      <p>The Personal Concierge persona helps with daily tasks, planning, scheduling, and can create reminders that sync directly to your iPhone!</p>
+      <div class="tip"><strong>How to use:</strong> In Chat, select the 🎯 Personal Concierge from the persona dropdown, then ask for reminders naturally.</div>
+    </div>
+
+    <div class="feature-card">
+      <h3><span class="icon">📱</span> iPhone Reminders Integration</h3>
+      <p>Connect Ardyn to your iPhone Reminders app for seamless task management.</p>
+      
+      <h4 style="margin:20px 0 12px;font-size:1.1rem">One-Time Setup:</h4>
+      <ol class="step-list">
+        <li>
+          <h4>Install Shortcuts App</h4>
+          <p>Make sure Apple's Shortcuts app is installed (free on App Store)</p>
+        </li>
+        <li>
+          <h4>Create "Ardyn Reminder" Shortcut</h4>
+          <p>Open Shortcuts → Tap + → Name it exactly "Ardyn Reminder"</p>
+        </li>
+        <li>
+          <h4>Add Actions</h4>
+          <p>Add: 1) Receive Input (Text), 2) Get Dictionary from Input, 3) Add Reminder</p>
+        </li>
+        <li>
+          <h4>Done!</h4>
+          <p>Now when you ask the Concierge for reminders, you'll get a button to add to iPhone</p>
+        </li>
+      </ol>
+    </div>
+
+    <div class="feature-card">
+      <h3><span class="icon">💬</span> Example Commands</h3>
+      <p>Try these with the Personal Concierge:</p>
+      <ul style="margin:12px 0;padding-left:20px;color:#666;line-height:1.8">
+        <li>"Remind me to call mom tomorrow at 3pm"</li>
+        <li>"Add 'buy groceries' to my reminders for Saturday"</li>
+        <li>"Set a daily reminder to take my medicine at 8am"</li>
+        <li>"Remind me about the meeting in 2 hours"</li>
+      </ul>
+      <div class="demo-box" style="margin-top:16px">
+<span class="comment">// Ardyn will respond with a clickable button:</span>
+<span class="response">I'll set that reminder for you!</span>
+
+<a href="#" style="color:#4ade80">📱 Add to iPhone Reminders</a>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <h3><span class="icon">🔔</span> How It Works</h3>
+      <p>When you ask the Personal Concierge to set a reminder:</p>
+      <ol class="step-list">
+        <li>
+          <h4>AI Understands</h4>
+          <p>The Concierge parses your natural language request</p>
+        </li>
+        <li>
+          <h4>Creates Reminder</h4>
+          <p>Ardyn generates a reminder object with title, time, and priority</p>
+        </li>
+        <li>
+          <h4>iOS Shortcuts Link</h4>
+          <p>A special URL is created that opens the Shortcuts app</p>
+        </li>
+        <li>
+          <h4>One Tap Add</h4>
+          <p>You tap the button and the reminder is added to your iPhone</p>
+        </li>
+      </ol>
+      <div class="tip"><strong>Privacy:</strong> Reminder data is stored encrypted in your Ardyn account. The iPhone integration uses Apple's secure Shortcuts protocol.</div>
+    </div>
+  </div>
+
+  <div class="nav-buttons">
+    <button class="btn-skip" onclick="window.location.href='/chat'">Skip tutorial</button>
+    <button class="btn-nav next" onclick="window.location.href='/chat'">Start Chatting →</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showSection(id) {
+  document.querySelectorAll('.tutorial-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tutorial-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('section-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+{% endblock %}

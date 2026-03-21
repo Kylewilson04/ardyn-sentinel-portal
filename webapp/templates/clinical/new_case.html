@@ -1,0 +1,197 @@
+{% extends "enterprise_base.html" %}
+{% block title %}New Case — Ardyn Healthcare{% endblock %}
+{% block page_title %}New Clinical Case{% endblock %}
+
+{% block content %}
+<div class="clinical-container">
+  <div class="clinical-hero" style="background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%); border-radius: 20px; padding: 40px; margin-bottom: 32px; color: white;">
+    <h2 style="font-size: 2rem; font-weight: 600; margin-bottom: 12px;">🩺 New Clinical Case</h2>
+    <p style="font-size: 1.125rem; color: rgba(255,255,255,0.8);">Enter patient presentation for AI differential diagnosis</p>
+  </div>
+
+  <form id="case-form" onsubmit="submitCase(event)">
+    <!-- Patient Selection -->
+    <div class="card" style="margin-bottom: 24px;">
+      <h3 style="margin-bottom: 20px;">Patient</h3>
+      <div class="form-group">
+        <label>Select Patient</label>
+        <select id="vault-select" class="input" required>
+          <option value="">Loading patients...</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Chief Complaint -->
+    <div class="card" style="margin-bottom: 24px;">
+      <h3 style="margin-bottom: 20px;">Chief Complaint</h3>
+      <div class="form-group">
+        <label>Presenting Complaint</label>
+        <textarea id="complaint" class="input" rows="3" placeholder="Patient's primary reason for visit" required></textarea>
+      </div>
+    </div>
+
+    <!-- Symptoms -->
+    <div class="card" style="margin-bottom: 24px;">
+      <h3 style="margin-bottom: 20px;">Symptoms</h3>
+      <div class="form-group">
+        <label>Symptoms (comma-separated)</label>
+        <textarea id="symptoms" class="input" rows="3" placeholder="e.g., fever, cough, fatigue, chest pain" required></textarea>
+      </div>
+    </div>
+
+    <!-- Vital Signs -->
+    <div class="card" style="margin-bottom: 24px;">
+      <h3 style="margin-bottom: 20px;">Vital Signs</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        <div class="form-group">
+          <label>Temperature (°F)</label>
+          <input type="number" id="temp" class="input" step="0.1" placeholder="98.6">
+        </div>
+        <div class="form-group">
+          <label>Heart Rate (BPM)</label>
+          <input type="number" id="hr" class="input" placeholder="72">
+        </div>
+        <div class="form-group">
+          <label>Blood Pressure Systolic</label>
+          <input type="number" id="bp-sys" class="input" placeholder="120">
+        </div>
+        <div class="form-group">
+          <label>Blood Pressure Diastolic</label>
+          <input type="number" id="bp-dia" class="input" placeholder="80">
+        </div>
+        <div class="form-group">
+          <label>Oxygen Saturation (%)</label>
+          <input type="number" id="o2" class="input" step="0.1" placeholder="98">
+        </div>
+        <div class="form-group">
+          <label>Respiratory Rate</label>
+          <input type="number" id="rr" class="input" placeholder="16">
+        </div>
+      </div>
+    </div>
+
+    <!-- Lab Results -->
+    <div class="card" style="margin-bottom: 24px;">
+      <h3 style="margin-bottom: 20px;">Lab Results (Optional)</h3>
+      <div id="lab-container">
+        <div class="lab-row" style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 12px; margin-bottom: 12px;">
+          <input type="text" class="input lab-name" placeholder="Test name (e.g., WBC)">
+          <input type="text" class="input lab-value" placeholder="Value">
+          <input type="text" class="input lab-unit" placeholder="Unit">
+          <select class="input lab-flag">
+            <option value="">Normal</option>
+            <option value="HIGH">High</option>
+            <option value="LOW">Low</option>
+            <option value="CRITICAL">Critical</option>
+          </select>
+        </div>
+      </div>
+      <button type="button" class="btn btn-outline btn-sm" onclick="addLabRow()" style="margin-top: 12px;">+ Add Lab</button>
+    </div>
+
+    <!-- Actions -->
+    <div style="display: flex; gap: 16px;">
+      <button type="submit" class="btn btn-primary" style="flex: 1; padding: 16px; font-size: 1rem;">
+        Create Case & Run Differential
+      </button>
+      <a href="/clinical/portal/patients" class="btn btn-outline" style="padding: 16px 32px;">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script>
+// Load patients into select
+async function loadPatients() {
+  try {
+    const r = await api('/api/clinical/patients');
+    const select = document.getElementById('vault-select');
+    
+    if (!r.patients || r.patients.length === 0) {
+      select.innerHTML = '<option value="">No patients found</option>';
+      return;
+    }
+    
+    select.innerHTML = '<option value="">Select patient...</option>' + 
+      r.patients.map(p => `<option value="${p.id}">MRN: ${p.patient_mrn}</option>`).join('');
+  } catch(e) {
+    document.getElementById('vault-select').innerHTML = '<option value="">Failed to load</option>';
+  }
+}
+
+function addLabRow() {
+  const container = document.getElementById('lab-container');
+  const row = document.createElement('div');
+  row.className = 'lab-row';
+  row.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 12px; margin-bottom: 12px;';
+  row.innerHTML = `
+    <input type="text" class="input lab-name" placeholder="Test name">
+    <input type="text" class="input lab-value" placeholder="Value">
+    <input type="text" class="input lab-unit" placeholder="Unit">
+    <select class="input lab-flag">
+      <option value="">Normal</option>
+      <option value="HIGH">High</option>
+      <option value="LOW">Low</option>
+      <option value="CRITICAL">Critical</option>
+    </select>
+  `;
+  container.appendChild(row);
+}
+
+async function submitCase(e) {
+  e.preventDefault();
+  
+  // Collect labs
+  const labs = [];
+  document.querySelectorAll('.lab-row').forEach(row => {
+    const name = row.querySelector('.lab-name').value;
+    const value = row.querySelector('.lab-value').value;
+    const unit = row.querySelector('.lab-unit').value;
+    const flag = row.querySelector('.lab-flag').value;
+    if (name && value) {
+      labs.push({ test_name: name, value, unit, flag });
+    }
+  });
+  
+  // Collect vitals
+  const vitals = {};
+  if (document.getElementById('temp').value) vitals.temperature = parseFloat(document.getElementById('temp').value);
+  if (document.getElementById('hr').value) vitals.heart_rate = parseInt(document.getElementById('hr').value);
+  if (document.getElementById('bp-sys').value) vitals.blood_pressure_sys = parseInt(document.getElementById('bp-sys').value);
+  if (document.getElementById('bp-dia').value) vitals.blood_pressure_dia = parseInt(document.getElementById('bp-dia').value);
+  if (document.getElementById('o2').value) vitals.oxygen_saturation = parseFloat(document.getElementById('o2').value);
+  if (document.getElementById('rr').value) vitals.respiratory_rate = parseInt(document.getElementById('rr').value);
+  
+  const data = {
+    vault_id: document.getElementById('vault-select').value,
+    presenting_complaint: document.getElementById('complaint').value,
+    symptoms: document.getElementById('symptoms').value.split(',').map(s => s.trim()),
+    vitals: Object.keys(vitals).length > 0 ? vitals : null,
+    labs: labs.length > 0 ? labs : null
+  };
+  
+  try {
+    const r = await api('/api/clinical/cases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    
+    // Redirect to case review
+    location.href = `/clinical/portal/cases/${r.case_id}`;
+  } catch(e) {
+    alert('Failed to create case: ' + e.message);
+  }
+}
+
+// Check for vault_id in URL
+const params = new URLSearchParams(window.location.search);
+const vaultId = params.get('vault');
+if (vaultId) {
+  loadPatients().then(() => {
+    document.getElementById('vault-select').value = vaultId;
+  });
+} else {
+  loadPatients();
+}
+</script>
+{% endblock %}

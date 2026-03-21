@@ -1,0 +1,172 @@
+{% extends "enterprise_base.html" %}
+{% block title %}Billing — Ardyn{% endblock %}
+{% block page_title %}Billing & Usage{% endblock %}
+{% block content %}
+<style>
+  .billing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
+  .billing-card { background: #fff; border: 1px solid #e8e4df; border-radius: 16px; padding: 1.5rem; }
+  .billing-card h4 { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: #9a8c7a; margin: 0 0 .5rem; }
+  .billing-card .value { font-size: 2rem; font-weight: 700; color: #1a1a1a; }
+  .billing-card .sub { font-size: .85rem; color: #9a8c7a; margin-top: .25rem; }
+
+  .progress-wrap { margin: 1.5rem 0; }
+  .progress-bar-bg { background: #f0ebe4; border-radius: 999px; height: 12px; overflow: hidden; }
+  .progress-bar-fill { background: linear-gradient(90deg, #d4a853, #c4922e); height: 100%; border-radius: 999px; transition: width .5s ease; }
+  .progress-label { display: flex; justify-content: space-between; font-size: .85rem; color: #6b5e4f; margin-top: .4rem; }
+
+  .setup-banner { background: linear-gradient(135deg, #fdf8f0, #f5ead8); border: 1px solid #e2d5bf; border-radius: 16px; padding: 1.5rem 2rem; display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; }
+  .setup-banner .info h3 { margin: 0; font-size: 1.1rem; color: #1a1a1a; }
+  .setup-banner .info p { margin: .3rem 0 0; color: #6b5e4f; font-size: .9rem; }
+  .btn-amber { background: linear-gradient(135deg, #d4a853, #c4922e); color: #fff; border: none; padding: .7rem 1.5rem; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: .9rem; }
+  .btn-amber:hover { filter: brightness(1.05); }
+  .btn-amber:disabled { opacity: .5; cursor: not-allowed; }
+
+  .badge-free { background: #e8f5e9; color: #2e7d32; padding: .15rem .6rem; border-radius: 6px; font-size: .75rem; font-weight: 600; }
+  .badge-paid { background: #fff3e0; color: #e65100; padding: .15rem .6rem; border-radius: 6px; font-size: .75rem; font-weight: 600; }
+  .badge-active { background: #e8f5e9; color: #2e7d32; padding: .15rem .6rem; border-radius: 6px; font-size: .75rem; font-weight: 600; }
+
+  .usage-table { width: 100%; border-collapse: collapse; }
+  .usage-table th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #9a8c7a; padding: .75rem .5rem; border-bottom: 1px solid #e8e4df; }
+  .usage-table td { padding: .65rem .5rem; border-bottom: 1px solid #f0ebe4; font-size: .9rem; color: #3a3530; }
+  .usage-table .mono { font-family: 'SF Mono', monospace; font-size: .82rem; }
+
+  .empty-state { text-align: center; padding: 3rem; color: #9a8c7a; }
+
+  .success-toast { background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32; padding: 1rem 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; display: none; }
+</style>
+
+<div id="setup-success" class="success-toast">✓ Payment method added successfully!</div>
+
+<div class="billing-grid">
+  <div class="billing-card">
+    <h4>Sovereignty Events</h4>
+    <div class="value" id="b-events">—</div>
+    <div class="sub" id="b-events-sub">Loading...</div>
+  </div>
+  <div class="billing-card">
+    <h4>Current Balance</h4>
+    <div class="value" id="b-amount">—</div>
+    <div class="sub" id="b-amount-sub">Usage-based billing</div>
+  </div>
+  <div class="billing-card">
+    <h4>Status</h4>
+    <div class="value" id="b-status">—</div>
+    <div class="sub" id="b-status-sub"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Free Tier</h3>
+  <div class="progress-wrap">
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="free-bar" style="width:0%"></div></div>
+    <div class="progress-label"><span id="free-used">0 / 100 events used</span><span id="free-cost">$0.04 per event after</span></div>
+  </div>
+</div>
+
+<div id="payment-banner" class="setup-banner" style="display:none;">
+  <div class="info">
+    <h3>Add a Payment Method</h3>
+    <p>Continue using Ardyn beyond the free tier. You'll only be charged for usage over 100 events.</p>
+  </div>
+  <button class="btn-amber" id="btn-setup" onclick="setupPayment()">Add Card</button>
+</div>
+
+<div class="card">
+  <h3>Usage History</h3>
+  <div style="overflow-x:auto;">
+    <table class="usage-table">
+      <thead><tr><th>Time</th><th>Job ID</th><th>Model</th><th>Type</th><th>Cost</th></tr></thead>
+      <tbody id="history-body"><tr><td colspan="5" class="empty-state">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Pricing</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;max-width:500px;">
+    <div style="padding:1rem;background:#fdf8f0;border-radius:12px;border:1px solid #e8e4df;">
+      <div style="font-weight:700;font-size:1.3rem;">$0.00</div>
+      <div style="color:#6b5e4f;font-size:.85rem;">First 100 events</div>
+    </div>
+    <div style="padding:1rem;background:#fdf8f0;border-radius:12px;border:1px solid #e8e4df;">
+      <div style="font-weight:700;font-size:1.3rem;">$0.04</div>
+      <div style="color:#6b5e4f;font-size:.85rem;">Per event after</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadBilling() {
+  try {
+    const d = await api('/api/billing/usage');
+    const events = d.events_count || 0;
+    const freeLimit = d.free_tier_limit || 100;
+    const freeUsed = Math.min(events, freeLimit);
+    const billable = d.billable || 0;
+    const amountDue = d.amount_due || 0;
+
+    document.getElementById('b-events').textContent = events.toLocaleString();
+    document.getElementById('b-events-sub').textContent = `${d.free_remaining} free events remaining`;
+
+    document.getElementById('b-amount').textContent = '$' + amountDue.toFixed(2);
+    document.getElementById('b-amount-sub').textContent = billable > 0 ? `${billable} billable events` : 'All usage within free tier';
+
+    if (d.payment_method_added) {
+      document.getElementById('b-status').innerHTML = '<span class="badge-active">Active</span>';
+      document.getElementById('b-status-sub').textContent = 'Payment method on file';
+    } else if (!d.stripe_connected) {
+      document.getElementById('b-status').innerHTML = '<span class="badge-free">Free Mode</span>';
+      document.getElementById('b-status-sub').textContent = 'No billing enforcement';
+    } else {
+      document.getElementById('b-status').innerHTML = '<span class="badge-free">Free Tier</span>';
+      document.getElementById('b-status-sub').textContent = 'No payment method';
+    }
+
+    // Progress bar
+    const pct = Math.min(100, (freeUsed / freeLimit) * 100);
+    document.getElementById('free-bar').style.width = pct + '%';
+    document.getElementById('free-used').textContent = `${freeUsed} / ${freeLimit} events used`;
+
+    // Show payment banner if near/over limit and no payment method
+    if (events >= freeLimit * 0.8 && !d.payment_method_added && d.stripe_connected) {
+      document.getElementById('payment-banner').style.display = 'flex';
+    }
+
+    // Load history
+    const h = await api('/api/billing/history');
+    const tbody = document.getElementById('history-body');
+    if (!h.events || h.events.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No sovereignty events yet. Run an inference to get started.</td></tr>';
+    } else {
+      tbody.innerHTML = h.events.map(e => `<tr>
+        <td>${new Date(e.created_at*1000).toLocaleString()}</td>
+        <td class="mono">${(e.job_id||'').substring(0,12)}…</td>
+        <td>${e.model ? '<span class="model-badge">' + shortModel(e.model) + '</span>' : '—'}</td>
+        <td><span class="badge-${e.amount > 0 && (h.events.indexOf(e) < (events - freeLimit)) ? 'paid' : 'free'}">${e.event_type}</span></td>
+        <td>$${(e.amount||0).toFixed(2)}</td>
+      </tr>`).join('');
+    }
+  } catch(e) { console.error('Billing load error:', e); }
+}
+
+async function setupPayment() {
+  const btn = document.getElementById('btn-setup');
+  btn.disabled = true; btn.textContent = 'Redirecting...';
+  try {
+    const d = await api('/api/billing/setup', {method:'POST'});
+    if (d.url) window.location.href = d.url;
+    else { btn.disabled = false; btn.textContent = 'Add Card'; alert('Could not create checkout session.'); }
+  } catch(e) { btn.disabled = false; btn.textContent = 'Add Card'; alert('Error: ' + e.message); }
+}
+
+// Check for setup success
+if (new URLSearchParams(window.location.search).get('setup') === 'success') {
+  document.getElementById('setup-success').style.display = 'block';
+  history.replaceState({}, '', '/billing');
+}
+
+function shortModel(m) { return m ? m.split('/').pop().split(':')[0] : '—'; }
+loadBilling();
+</script>
+{% endblock %}

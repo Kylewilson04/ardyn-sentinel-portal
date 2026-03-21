@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ardyn Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: { bg: '#09090b', card: '#0f0f12', cyan: '#00fff2', dim: '#52525b' },
+      fontFamily: { inter: ['Inter', 'system-ui', 'sans-serif'] },
+    }
+  }
+}
+</script>
+<style>
+body { font-family: 'Inter', system-ui, sans-serif; background: #09090b; color: #fafafa; }
+.glow { box-shadow: 0 0 30px rgba(0,255,242,0.08); }
+.modal-bg { background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
+table { border-collapse: collapse; width: 100%; }
+th { text-align: left; font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #71717a; padding: 0.75rem 1rem; border-bottom: 1px solid #27272a; }
+td { padding: 0.75rem 1rem; border-bottom: 1px solid #1c1c1f; font-size: 0.875rem; }
+tr:hover td { background: #0f0f12; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+.badge-green { background: rgba(34,197,94,0.15); color: #22c55e; }
+.badge-red { background: rgba(239,68,68,0.15); color: #ef4444; }
+.badge-yellow { background: rgba(234,179,8,0.15); color: #eab308; }
+.badge-cyan { background: rgba(0,255,242,0.12); color: #00fff2; }
+.btn { padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+.btn-cyan { background: #00fff2; color: #09090b; }
+.btn-cyan:hover { background: #00ddd2; }
+.btn-outline { border: 1px solid #3f3f46; color: #a1a1aa; background: transparent; }
+.btn-outline:hover { border-color: #00fff2; color: #00fff2; }
+.btn-red { border: 1px solid #7f1d1d; color: #ef4444; background: transparent; }
+.btn-red:hover { background: rgba(239,68,68,0.1); }
+.btn-sm { padding: 0.25rem 0.625rem; font-size: 0.75rem; }
+input, select { background: #18181b; border: 1px solid #3f3f46; border-radius: 0.375rem; padding: 0.5rem 0.75rem; color: #fafafa; font-size: 0.875rem; width: 100%; }
+input:focus, select:focus { outline: none; border-color: #00fff2; }
+label { display: block; font-size: 0.75rem; font-weight: 500; color: #a1a1aa; margin-bottom: 0.25rem; }
+.stat-card { background: #0f0f12; border: 1px solid #27272a; border-radius: 0.75rem; padding: 1.25rem; }
+.section { margin-bottom: 2.5rem; }
+.section-title { font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem; }
+.copy-btn { cursor: pointer; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; background: #27272a; color: #a1a1aa; border: none; }
+.copy-btn:hover { background: #3f3f46; color: #fff; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Header -->
+<header class="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
+  <div class="flex items-center gap-4">
+    <h1 class="text-lg font-semibold tracking-tight">Ardyn Admin <span class="badge badge-cyan">ADMIN</span></h1>
+    <span id="teeIndicator" class="text-xs px-2 py-1 rounded-full border border-zinc-700 text-zinc-400">GPU VM: checking...</span>
+  </div>
+  <div class="flex items-center gap-3">
+    <button onclick="toggleTEE()" id="teeToggleBtn" class="btn btn-outline btn-sm">⏻ GPU VM</button>
+    <a href="/logout" class="text-sm text-zinc-400 hover:text-white transition">Logout →</a>
+  </div>
+</header>
+
+<!-- Main -->
+<main class="max-w-7xl mx-auto px-6 py-8">
+
+  <!-- Nav tabs -->
+  <div class="flex gap-1 mb-8 border-b border-zinc-800 pb-px">
+    <button onclick="showTab('partners')" class="tab-btn px-4 py-2 text-sm font-medium rounded-t border-b-2 border-cyan text-cyan" data-tab="partners">Partners</button>
+    <button onclick="showTab('licenses')" class="tab-btn px-4 py-2 text-sm font-medium rounded-t border-b-2 border-transparent text-zinc-400 hover:text-white" data-tab="licenses">Licenses</button>
+    <button onclick="showTab('usage')" class="tab-btn px-4 py-2 text-sm font-medium rounded-t border-b-2 border-transparent text-zinc-400 hover:text-white" data-tab="usage">Usage</button>
+    <button onclick="showTab('system')" class="tab-btn px-4 py-2 text-sm font-medium rounded-t border-b-2 border-transparent text-zinc-400 hover:text-white" data-tab="system">System</button>
+  </div>
+
+  <!-- Partners Tab -->
+  <div id="tab-partners" class="tab-content">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="section-title">Partner Management</h2>
+      <button onclick="openCreatePartnerModal()" class="btn btn-cyan">+ Create Partner</button>
+    </div>
+    <div class="border border-zinc-800 rounded-lg overflow-hidden">
+      <table>
+        <thead><tr>
+          <th>Company</th><th>Email</th><th>API Key</th><th>Status</th><th>Created</th><th>Events</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="partnersTable"><tr><td colspan="7" class="text-center text-zinc-500 py-8">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Licenses Tab -->
+  <div id="tab-licenses" class="tab-content hidden">
+    <h2 class="section-title">License Management</h2>
+    <div class="border border-zinc-800 rounded-lg overflow-hidden">
+      <table>
+        <thead><tr>
+          <th>Partner</th><th>Tier</th><th>Verticals</th><th>Created</th><th>Expires</th><th>Status</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="licensesTable"><tr><td colspan="7" class="text-center text-zinc-500 py-8">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Usage Tab -->
+  <div id="tab-usage" class="tab-content hidden">
+    <h2 class="section-title">Usage Overview</h2>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div class="stat-card"><div class="text-xs text-zinc-500 mb-1">Total Events (Month)</div><div id="usageTotalEvents" class="text-2xl font-bold text-cyan">—</div></div>
+      <div class="stat-card"><div class="text-xs text-zinc-500 mb-1">Revenue Estimate</div><div id="usageRevenue" class="text-2xl font-bold text-green-400">—</div></div>
+      <div class="stat-card"><div class="text-xs text-zinc-500 mb-1">GPU Cost Estimate</div><div id="usageTEECost" class="text-2xl font-bold text-red-400">—</div></div>
+      <div class="stat-card"><div class="text-xs text-zinc-500 mb-1">Net</div><div id="usageNet" class="text-2xl font-bold">—</div></div>
+    </div>
+    <h3 class="text-sm font-medium text-zinc-400 mb-3">Per-Partner Breakdown</h3>
+    <div class="border border-zinc-800 rounded-lg overflow-hidden">
+      <table>
+        <thead><tr><th>Partner</th><th>Events</th><th>Cost</th><th>Revenue Est.</th></tr></thead>
+        <tbody id="usageTable"><tr><td colspan="4" class="text-center text-zinc-500 py-8">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- System Tab -->
+  <div id="tab-system" class="tab-content hidden">
+    <h2 class="section-title">System Status</h2>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div class="stat-card"><div class="text-xs text-zinc-500 mb-1">GPU VM</div><div id="sysTEE" class="text-lg font-semibold">—</div></div>
+      <div class="stat-card"><div class="text-xs text-zinc-500 mb-1">Webapp</div><div id="sysWebapp" class="text-lg font-semibold">—</div></div>
+      <div class="stat-card"><div class="text-xs text-zinc-500 mb-1">Total Users</div><div id="sysUsers" class="text-2xl font-bold">—</div></div>
+      <div class="stat-card"><div class="text-xs text-zinc-500 mb-1">Total Events</div><div id="sysEvents" class="text-2xl font-bold">—</div></div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="stat-card"><div class="text-xs text-zinc-500 mb-1">Total Certificates</div><div id="sysCerts" class="text-2xl font-bold">—</div></div>
+      <div class="stat-card">
+        <div class="text-xs text-zinc-500 mb-2">GPU VM Control</div>
+        <div class="flex gap-2">
+          <button onclick="teeAction('start')" class="btn btn-outline btn-sm">▶ Start</button>
+          <button onclick="teeAction('stop')" class="btn btn-red btn-sm">⏹ Stop</button>
+        </div>
+        <div id="teeActionMsg" class="text-xs text-zinc-500 mt-2"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Create Partner Modal -->
+<div id="createPartnerModal" class="fixed inset-0 modal-bg z-50 flex items-center justify-center hidden">
+  <div class="bg-zinc-900 border border-zinc-700 rounded-xl p-6 w-full max-w-lg shadow-2xl">
+    <h3 class="text-lg font-semibold mb-4">Create Partner</h3>
+    <div class="space-y-3">
+      <div><label>Company Name</label><input id="cpCompany" placeholder="Acme Health"></div>
+      <div><label>Contact Email</label><input id="cpEmail" type="email" placeholder="admin@acme.com"></div>
+      <div><label>Tier</label>
+        <select id="cpTier">
+          <option value="starter">Starter</option>
+          <option value="professional" selected>Professional</option>
+          <option value="enterprise">Enterprise</option>
+          <option value="sovereign">Sovereign</option>
+        </select>
+      </div>
+      <div><label>Verticals</label>
+        <div class="flex flex-wrap gap-3 mt-1">
+          <label class="flex items-center gap-1 text-sm text-zinc-300"><input type="checkbox" value="healthcare" class="cp-vert" checked> Healthcare</label>
+          <label class="flex items-center gap-1 text-sm text-zinc-300"><input type="checkbox" value="finance" class="cp-vert"> Finance</label>
+          <label class="flex items-center gap-1 text-sm text-zinc-300"><input type="checkbox" value="legal" class="cp-vert"> Legal</label>
+          <label class="flex items-center gap-1 text-sm text-zinc-300"><input type="checkbox" value="cybersecurity" class="cp-vert"> Cybersecurity</label>
+          <label class="flex items-center gap-1 text-sm text-zinc-300"><input type="checkbox" value="pharmacy" class="cp-vert"> Pharmacy</label>
+        </div>
+      </div>
+      <div><label>License Duration (months)</label><input id="cpMonths" type="number" value="12" min="1" max="60"></div>
+    </div>
+    <div class="flex justify-end gap-3 mt-6">
+      <button onclick="closeModal('createPartnerModal')" class="btn btn-outline">Cancel</button>
+      <button onclick="generatePartner()" id="cpGenerateBtn" class="btn btn-cyan">Generate</button>
+    </div>
+  </div>
+</div>
+
+<!-- Results Modal -->
+<div id="resultsModal" class="fixed inset-0 modal-bg z-50 flex items-center justify-center hidden">
+  <div class="bg-zinc-900 border border-zinc-700 rounded-xl p-6 w-full max-w-lg shadow-2xl">
+    <h3 class="text-lg font-semibold mb-1">✅ Partner Created</h3>
+    <p class="text-xs text-zinc-500 mb-4">Save these credentials — they won't be shown again.</p>
+    <div class="space-y-3">
+      <div>
+        <label>API Key</label>
+        <div class="flex items-center gap-2">
+          <code id="resApiKey" class="flex-1 bg-zinc-800 px-3 py-2 rounded text-xs font-mono text-cyan break-all"></code>
+          <button onclick="copyText('resApiKey')" class="copy-btn">Copy</button>
+        </div>
+      </div>
+      <div>
+        <label>License Key</label>
+        <div class="flex items-center gap-2">
+          <code id="resLicenseKey" class="flex-1 bg-zinc-800 px-3 py-2 rounded text-xs font-mono text-green-400 break-all max-h-24 overflow-auto"></code>
+          <button onclick="copyText('resLicenseKey')" class="copy-btn">Copy</button>
+        </div>
+      </div>
+      <div>
+        <label>Expires</label>
+        <span id="resExpires" class="text-sm text-zinc-300"></span>
+      </div>
+    </div>
+    <div class="flex justify-end gap-3 mt-6">
+      <button onclick="downloadPackage()" id="resDlBtn" class="btn btn-outline">📦 Download Package</button>
+      <button onclick="closeModal('resultsModal'); loadPartners();" class="btn btn-cyan">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let lastCreatedPartnerId = null;
+
+// ── Tab Navigation ──
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.tab-btn').forEach(el => { el.classList.remove('border-cyan','text-cyan'); el.classList.add('border-transparent','text-zinc-400'); });
+  document.getElementById('tab-' + name).classList.remove('hidden');
+  const btn = document.querySelector(`.tab-btn[data-tab="${name}"]`);
+  btn.classList.add('border-cyan','text-cyan');
+  btn.classList.remove('border-transparent','text-zinc-400');
+  if (name === 'partners') loadPartners();
+  if (name === 'licenses') loadLicenses();
+  if (name === 'usage') loadUsage();
+  if (name === 'system') loadSystem();
+}
+
+// ── Helpers ──
+function fmtDate(ts) { if (!ts) return '—'; return new Date(ts * 1000).toLocaleDateString(); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+function copyText(id) {
+  const t = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(t);
+  event.target.textContent = '✓';
+  setTimeout(() => event.target.textContent = 'Copy', 1500);
+}
+
+async function apiFetch(url, opts = {}) {
+  const r = await fetch(API + url, { credentials: 'include', ...opts });
+  if (r.status === 403) { alert('Admin access required'); throw new Error('403'); }
+  if (r.status === 401) { window.location = '/login?next=/admin'; throw new Error('401'); }
+  return r.json();
+}
+
+// ── Partners ──
+async function loadPartners() {
+  try {
+    const data = await apiFetch('/admin/partners');
+    const tb = document.getElementById('partnersTable');
+    if (!data.partners.length) { tb.innerHTML = '<tr><td colspan="7" class="text-center text-zinc-500 py-8">No partners yet</td></tr>'; return; }
+    tb.innerHTML = data.partners.map(p => `<tr>
+      <td class="font-medium">${esc(p.company_name || '—')}</td>
+      <td class="text-zinc-400">${esc(p.email)}</td>
+      <td><code class="text-xs text-zinc-500">${esc(p.api_key_prefix || '—')}...</code></td>
+      <td>${p.is_active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
+      <td class="text-zinc-400">${fmtDate(p.created_at)}</td>
+      <td>${p.total_jobs}</td>
+      <td>${p.is_active ? `<button onclick="deactivatePartner('${p.partner_id}')" class="btn btn-red btn-sm">Deactivate</button>` : '<span class="text-zinc-600 text-xs">Deactivated</span>'}</td>
+    </tr>`).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function deactivatePartner(id) {
+  if (!confirm('Deactivate this partner? Their API key will stop working.')) return;
+  await apiFetch('/admin/partners/' + id, { method: 'DELETE' });
+  loadPartners();
+}
+
+// ── Create Partner Flow ──
+function openCreatePartnerModal() { document.getElementById('createPartnerModal').classList.remove('hidden'); }
+
+async function generatePartner() {
+  const btn = document.getElementById('cpGenerateBtn');
+  btn.disabled = true; btn.textContent = 'Generating...';
+  try {
+    const company = document.getElementById('cpCompany').value.trim();
+    const email = document.getElementById('cpEmail').value.trim();
+    const tier = document.getElementById('cpTier').value;
+    const verticals = [...document.querySelectorAll('.cp-vert:checked')].map(c => c.value);
+    const months = parseInt(document.getElementById('cpMonths').value) || 12;
+
+    if (!company || !email) { alert('Company name and email are required'); return; }
+
+    // 1. Create partner
+    const partner = await apiFetch('/admin/partners', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, company_name: company })
+    });
+
+    // 2. Generate license
+    const license = await apiFetch('/admin/licenses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ partner_id: partner.partner_id, tier, verticals, months })
+    });
+
+    // 3. Show results
+    lastCreatedPartnerId = partner.partner_id;
+    document.getElementById('resApiKey').textContent = partner.api_key;
+    document.getElementById('resLicenseKey').textContent = license.license_key;
+    document.getElementById('resExpires').textContent = license.expires;
+    closeModal('createPartnerModal');
+    document.getElementById('resultsModal').classList.remove('hidden');
+
+    // Reset form
+    document.getElementById('cpCompany').value = '';
+    document.getElementById('cpEmail').value = '';
+  } catch(e) { alert('Error: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Generate'; }
+}
+
+async function downloadPackage() {
+  if (!lastCreatedPartnerId) return;
+  try {
+    const pkg = await apiFetch('/admin/partners/' + lastCreatedPartnerId + '/package');
+    const blob = new Blob([JSON.stringify(pkg, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'ardyn-deployment-package.json'; a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { alert('Failed to download package'); }
+}
+
+// ── Licenses ──
+async function loadLicenses() {
+  try {
+    const data = await apiFetch('/admin/licenses');
+    const tb = document.getElementById('licensesTable');
+    if (!data.licenses.length) { tb.innerHTML = '<tr><td colspan="7" class="text-center text-zinc-500 py-8">No licenses issued</td></tr>'; return; }
+    tb.innerHTML = data.licenses.map(l => `<tr>
+      <td class="font-medium">${esc(l.company_name)}</td>
+      <td><span class="badge badge-cyan">${esc(l.tier)}</span></td>
+      <td class="text-zinc-400 text-xs">${l.verticals.join(', ')}</td>
+      <td class="text-zinc-400">${fmtDate(l.created_at)}</td>
+      <td class="text-zinc-400">${fmtDate(l.expires_at)}</td>
+      <td>${l.is_expired ? '<span class="badge badge-red">Expired</span>' : l.is_active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Revoked</span>'}</td>
+      <td>${l.is_active && !l.is_expired ? `<button onclick="revokeLicense('${l.id}')" class="btn btn-red btn-sm">Revoke</button>` : ''}</td>
+    </tr>`).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function revokeLicense(id) {
+  if (!confirm('Revoke this license?')) return;
+  await apiFetch('/admin/licenses/' + id, { method: 'DELETE' });
+  loadLicenses();
+}
+
+// ── Usage ──
+async function loadUsage() {
+  try {
+    const data = await apiFetch('/admin/usage');
+    document.getElementById('usageTotalEvents').textContent = data.total_events.toLocaleString();
+    document.getElementById('usageRevenue').textContent = '$' + data.revenue_estimate.toLocaleString();
+    document.getElementById('usageTEECost').textContent = '$' + (data.tee_cost_estimate || 0).toLocaleString();
+    const net = data.revenue_estimate - (data.tee_cost_estimate || 0);
+    const netEl = document.getElementById('usageNet');
+    netEl.textContent = '$' + net.toLocaleString();
+    netEl.className = 'text-2xl font-bold ' + (net >= 0 ? 'text-green-400' : 'text-red-400');
+
+    const tb = document.getElementById('usageTable');
+    if (!data.by_partner.length) { tb.innerHTML = '<tr><td colspan="4" class="text-center text-zinc-500 py-8">No usage this month</td></tr>'; return; }
+    tb.innerHTML = data.by_partner.map(p => `<tr>
+      <td class="font-medium">${esc(p.company_name)}</td>
+      <td>${p.events.toLocaleString()}</td>
+      <td class="text-zinc-400">$${p.cost_usd.toLocaleString()}</td>
+      <td class="text-green-400">$${(p.events * 0.79).toFixed(2)}</td>
+    </tr>`).join('');
+  } catch(e) { console.error(e); }
+}
+
+// ── System ──
+async function loadSystem() {
+  try {
+    const data = await apiFetch('/admin/system');
+    const teeText = data.tee_status || 'unknown';
+    const isRunning = teeText.toLowerCase().includes('running');
+    document.getElementById('sysTEE').innerHTML = `${isRunning ? '🟢' : teeText.includes('deallocat') ? '🔴' : '🟡'} ${esc(teeText)}`;
+    document.getElementById('sysWebapp').innerHTML = data.webapp_healthy ? '🟢 Healthy' : '🔴 Unhealthy';
+    document.getElementById('sysUsers').textContent = data.db_stats.total_users;
+    document.getElementById('sysEvents').textContent = data.db_stats.total_events;
+    document.getElementById('sysCerts').textContent = data.db_stats.total_certificates;
+  } catch(e) { console.error(e); }
+}
+
+// ── TEE Control ──
+async function checkTEE() {
+  try {
+    const r = await fetch('/api/tee/vm-status', { credentials: 'include' });
+    const d = await r.json();
+    const ind = document.getElementById('teeIndicator');
+    const ps = d.power_state || 'unknown';
+    const running = ps.toLowerCase().includes('running');
+    ind.textContent = 'GPU VM: ' + ps;
+    ind.className = 'text-xs px-2 py-1 rounded-full border ' + (running ? 'border-green-700 text-green-400' : 'border-zinc-700 text-zinc-400');
+  } catch(e) {}
+}
+
+async function teeAction(action) {
+  const msg = document.getElementById('teeActionMsg');
+  msg.textContent = action === 'start' ? 'Starting...' : 'Stopping...';
+  try {
+    const r = await fetch('/api/tee/' + action, { method: 'POST', credentials: 'include' });
+    const d = await r.json();
+    msg.textContent = d.message || d.status;
+    setTimeout(checkTEE, 5000);
+  } catch(e) { msg.textContent = 'Error: ' + e.message; }
+}
+
+async function toggleTEE() {
+  const ind = document.getElementById('teeIndicator').textContent;
+  if (ind.toLowerCase().includes('running')) { teeAction('stop'); } else { teeAction('start'); }
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ── Init ──
+loadPartners();
+checkTEE();
+setInterval(checkTEE, 30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARDYN ADS — MISSION CONTROL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+    <style>
+        /* Custom dark theme and animations */
+        body { 
+            background: #0a0a0a; 
+            color: #ffffff; 
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .cyber-border {
+            border: 1px solid #00d4ff;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-online { background: #10b981; box-shadow: 0 0 8px #10b981; }
+        .status-warning { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+        .status-error { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+        .status-offline { background: #6b7280; }
+        
+        .pipeline-step {
+            padding: 8px 12px;
+            margin: 2px;
+            border-radius: 4px;
+            background: #1f2937;
+            color: #9ca3af;
+            transition: all 0.3s;
+            font-size: 11px;
+            text-align: center;
+            min-width: 80px;
+        }
+        .pipeline-step.active {
+            background: #00d4ff;
+            color: #000000;
+            box-shadow: 0 0 8px #00d4ff;
+        }
+        .pipeline-step.complete {
+            background: #10b981;
+            color: #ffffff;
+        }
+        .pipeline-step.error {
+            background: #ef4444;
+            color: #ffffff;
+        }
+        
+        .memory-block {
+            width: 8px;
+            height: 8px;
+            margin: 1px;
+            background: #374151;
+            transition: all 0.2s;
+            border-radius: 1px;
+        }
+        .memory-block.allocated { background: #00d4ff; box-shadow: 0 0 2px #00d4ff; }
+        .memory-block.processing { 
+            background: #00d4ff; 
+            animation: pulse 1s infinite;
+        }
+        .memory-block.zeroizing-1 { background: #f59e0b; }
+        .memory-block.zeroizing-2 { background: #f97316; }
+        .memory-block.zeroizing-3 { background: #dc2626; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .count-animation {
+            animation: countUp 0.5s ease-out;
+        }
+        
+        .glow-text {
+            text-shadow: 0 0 10px currentColor;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 4px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 2px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+        
+        .hash-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .hash-text:hover {
+            color: #00d4ff;
+        }
+        
+        .grid-dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto 1fr 300px;
+            gap: 16px;
+            height: 100vh;
+            padding: 16px;
+        }
+        
+        .header-row {
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-dashboard">
+        <!-- Header -->
+        <div class="header-row cyber-border bg-gray-900 p-4 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <div class="text-2xl font-bold text-cyan-400 glow-text">ARDYN ADS — MISSION CONTROL</div>
+                <div class="text-sm text-gray-400" id="connectionStatus">Connecting...</div>
+            </div>
+            <div class="flex items-center space-x-4" id="systemStatus">
+                <div class="flex items-center">
+                    <span class="status-dot status-offline" id="teeStatus"></span>
+                    <span class="text-xs">GPU</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="status-dot status-offline" id="ollamaStatus"></span>
+                    <span class="text-xs">OLLAMA</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="status-dot status-offline" id="hsmStatus"></span>
+                    <span class="text-xs">HSM</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="status-dot status-offline" id="dbStatus"></span>
+                    <span class="text-xs">DB</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Live Pipeline Feed -->
+        <div class="cyber-border bg-gray-900 p-4 overflow-hidden flex flex-col">
+            <h2 class="text-lg font-bold text-cyan-400 mb-4 glow-text">LIVE PIPELINE FEED</h2>
+            <div class="flex-1 overflow-y-auto scrollbar-thin" id="pipelineFeed">
+                <div class="text-gray-500 text-center py-8">Waiting for pipeline events...</div>
+            </div>
+        </div>
+        
+        <!-- Certificate Ledger -->
+        <div class="cyber-border bg-gray-900 p-4 overflow-hidden flex flex-col">
+            <h2 class="text-lg font-bold text-cyan-400 mb-4 glow-text">CERTIFICATE LEDGER</h2>
+            <div class="flex-1 overflow-y-auto scrollbar-thin" id="certificateLedger">
+                <div class="text-gray-500 text-center py-8">Loading certificates...</div>
+            </div>
+        </div>
+        
+        <!-- System Stats -->
+        <div class="cyber-border bg-gray-900 p-4">
+            <h2 class="text-lg font-bold text-cyan-400 mb-4 glow-text">SYSTEM STATS</h2>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400">Total Events</span>
+                    <span class="text-xl font-bold text-green-400 count-animation" id="totalEvents">0</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400">Events Today</span>
+                    <span class="text-xl font-bold text-green-400 count-animation" id="eventsToday">0</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400">Avg Latency</span>
+                    <span class="text-xl font-bold text-yellow-400 count-animation" id="avgLatency">0.0s</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400">Revenue ($)</span>
+                    <span class="text-xl font-bold text-green-400 count-animation" id="revenue">$0.00</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400">Uptime</span>
+                    <span class="text-xl font-bold text-blue-400 count-animation" id="uptime">0m</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TEE Memory Visualizer -->
+        <div class="cyber-border bg-gray-900 p-4">
+            <h2 class="text-lg font-bold text-cyan-400 mb-4 glow-text">GPU MEMORY VISUALIZER</h2>
+            <div class="flex flex-wrap justify-center" id="memoryGrid">
+                <!-- Memory blocks will be generated by JavaScript -->
+            </div>
+            <div class="mt-4 text-xs text-gray-400 text-center">
+                <span class="inline-block w-3 h-3 bg-gray-700 mr-2"></span>Free
+                <span class="inline-block w-3 h-3 bg-cyan-400 mr-2 ml-4"></span>Allocated
+                <span class="inline-block w-3 h-3 bg-yellow-500 mr-2 ml-4"></span>Zeroizing
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class MonitoringDashboard {
+            constructor() {
+                this.eventSource = null;
+                this.connectionRetryCount = 0;
+                this.maxRetries = 5;
+                this.jobs = new Map(); // Track active jobs
+                this.certificateCounter = 0;
+                this._tokenCache = null;
+                
+                this.init();
+            }
+            
+            getToken() {
+                // Token injected server-side into window.__ADS_TOKEN
+                const t = window.__ADS_TOKEN || '';
+                if (!t) {
+                    console.error('NO AUTH TOKEN! window.__ADS_TOKEN is empty. Try hard refresh (Ctrl+Shift+R)');
+                    document.getElementById('connectionStatus').textContent = 'No Auth Token — Hard Refresh (Ctrl+Shift+R)';
+                }
+                return t;
+            }
+            
+            authHeaders() {
+                const t = this.getToken();
+                return t ? {'Authorization': 'Bearer ' + t} : {};
+            }
+            
+            init() {
+                this.initMemoryGrid();
+                this.loadInitialData();
+                this.connectEventStream();
+            }
+            
+            initMemoryGrid() {
+                const grid = document.getElementById('memoryGrid');
+                grid.innerHTML = '';
+                
+                // Create a 20x10 grid of memory blocks (200 blocks total)
+                for (let i = 0; i < 200; i++) {
+                    const block = document.createElement('div');
+                    block.className = 'memory-block';
+                    block.id = `mem-${i}`;
+                    grid.appendChild(block);
+                }
+            }
+            
+            async loadInitialData() {
+                try {
+                    // Load initial system status
+                    const statusResponse = await fetch('/api/monitor/status?token=' + encodeURIComponent(this.getToken()), {credentials: 'include', headers: this.authHeaders()});
+                    if (statusResponse.ok) {
+                        const status = await statusResponse.json();
+                        this.updateSystemStatus(status);
+                        this.updateStats(status);
+                    }
+                    
+                    // Load initial certificates
+                    const certResponse = await fetch('/api/monitor/certificates?limit=20&token=' + encodeURIComponent(this.getToken()), {credentials: 'include', headers: this.authHeaders()});
+                    if (certResponse.ok) {
+                        const certData = await certResponse.json();
+                        this.updateCertificateLedger(certData.certificates);
+                    }
+                } catch (error) {
+                    console.error('Failed to load initial data:', error);
+                }
+            }
+            
+            connectEventStream() {
+                if (this.eventSource) {
+                    this.eventSource.close();
+                }
+                
+                // Pass auth token as query param (EventSource can't set headers)
+                this.eventSource = new EventSource('/api/monitor/stream?token=' + encodeURIComponent(this.getToken()));
+                
+                this.eventSource.onopen = () => {
+                    console.log('SSE connection opened');
+                    this.connectionRetryCount = 0;
+                    document.getElementById('connectionStatus').textContent = 'Connected';
+                    document.getElementById('connectionStatus').className = 'text-sm text-green-400';
+                };
+                
+                this.eventSource.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        this.handleEvent(data);
+                    } catch (error) {
+                        console.error('Failed to parse SSE event:', error);
+                    }
+                };
+                
+                this.eventSource.onerror = () => {
+                    console.error('SSE connection error');
+                    document.getElementById('connectionStatus').textContent = 'Connection Lost';
+                    document.getElementById('connectionStatus').className = 'text-sm text-red-400';
+                    
+                    this.eventSource.close();
+                    
+                    if (this.connectionRetryCount < this.maxRetries) {
+                        this.connectionRetryCount++;
+                        setTimeout(() => {
+                            console.log(`Reconnecting... (attempt ${this.connectionRetryCount})`);
+                            this.connectEventStream();
+                        }, 3000);
+                    } else {
+                        document.getElementById('connectionStatus').textContent = 'Disconnected';
+                    }
+                };
+            }
+            
+            handleEvent(event) {
+                switch (event.event_type) {
+                    case 'connection':
+                        console.log('SSE connected with client ID:', event.client_id);
+                        break;
+                        
+                    case 'heartbeat':
+                        this.updateSystemStatus(event.data);
+                        break;
+                        
+                    case 'pipeline_start':
+                        this.handlePipelineStart(event);
+                        break;
+                        
+                    case 'pipeline_step':
+                        this.handlePipelineStep(event);
+                        break;
+                        
+                    case 'pipeline_complete':
+                        this.handlePipelineComplete(event);
+                        break;
+                        
+                    case 'certificate_issued':
+                        this.handleCertificateIssued(event);
+                        break;
+                        
+                    case 'error':
+                        this.handleError(event);
+                        break;
+                        
+                    default:
+                        console.log('Unknown event type:', event.event_type, event);
+                }
+            }
+            
+            updateSystemStatus(data) {
+                // Update status dots
+                this.updateStatusDot('teeStatus', data.tee_vm?.status);
+                this.updateStatusDot('ollamaStatus', data.ollama?.status);
+                this.updateStatusDot('hsmStatus', data.key_vault?.status);
+                this.updateStatusDot('dbStatus', data.database?.status);
+                
+                // Update stats if present
+                if (data.total_events_processed !== undefined) {
+                    this.updateStats(data);
+                }
+            }
+            
+            updateStatusDot(elementId, status) {
+                const dot = document.getElementById(elementId);
+                if (!dot) return;
+                
+                dot.className = 'status-dot ';
+                
+                switch (status) {
+                    case 'online':
+                    case 'running':
+                    case 'ok':
+                        dot.className += 'status-online';
+                        break;
+                    case 'warning':
+                    case 'deallocated':
+                        dot.className += 'status-warning';
+                        break;
+                    case 'error':
+                    case 'offline':
+                        dot.className += 'status-error';
+                        break;
+                    default:
+                        dot.className += 'status-offline';
+                }
+            }
+            
+            updateStats(data) {
+                this.animateValue('totalEvents', data.total_events_processed || 0);
+                this.animateValue('eventsToday', data.events_today || 0);
+                this.animateValue('avgLatency', (data.average_inference_latency || 0).toFixed(1) + 's');
+                this.animateValue('revenue', '$' + (data.revenue_today || 0).toFixed(2));
+                this.animateValue('uptime', this.formatUptime(data.uptime_seconds || 0));
+            }
+            
+            animateValue(elementId, newValue) {
+                const element = document.getElementById(elementId);
+                if (element && element.textContent !== newValue.toString()) {
+                    element.textContent = newValue;
+                    element.classList.add('count-animation');
+                    setTimeout(() => element.classList.remove('count-animation'), 500);
+                }
+            }
+            
+            formatUptime(seconds) {
+                if (seconds < 60) return Math.floor(seconds) + 's';
+                if (seconds < 3600) return Math.floor(seconds / 60) + 'm';
+                if (seconds < 86400) return Math.floor(seconds / 3600) + 'h';
+                return Math.floor(seconds / 86400) + 'd';
+            }
+            
+            handlePipelineStart(event) {
+                const jobId = event.job_id;
+                const vertical = event.data.vertical || 'default';
+                
+                // Track job
+                this.jobs.set(jobId, {
+                    startTime: event.timestamp,
+                    vertical: vertical,
+                    currentStep: 'started',
+                    steps: {}
+                });
+                
+                // Add to pipeline feed
+                this.addPipelineEvent(jobId, `Pipeline started for ${vertical}`, 'info');
+                
+                // Allocate memory visualization
+                this.allocateMemoryBlocks(jobId);
+            }
+            
+            handlePipelineStep(event) {
+                const jobId = event.job_id;
+                const stepName = event.data.step_name;
+                const duration = event.data.duration_ms;
+                
+                if (!this.jobs.has(jobId)) {
+                    this.jobs.set(jobId, { steps: {} });
+                }
+                
+                const job = this.jobs.get(jobId);
+                job.steps[stepName] = { duration, timestamp: event.timestamp };
+                job.currentStep = stepName;
+                
+                // Add to pipeline feed
+                const durationText = duration ? ` (${duration}ms)` : '';
+                this.addPipelineEvent(jobId, `${stepName}${durationText}`, 'step');
+                
+                // Update memory visualization
+                this.updateMemoryVisualization(jobId, stepName);
+            }
+            
+            handlePipelineComplete(event) {
+                const jobId = event.job_id;
+                const certHash = event.data.certificate_hash;
+                const totalDuration = event.data.total_duration_ms;
+                
+                if (this.jobs.has(jobId)) {
+                    this.jobs.get(jobId).complete = true;
+                }
+                
+                this.addPipelineEvent(jobId, 
+                    `Pipeline complete: ${this.truncateHash(certHash)} (${totalDuration}ms)`, 
+                    'success'
+                );
+                
+                // Clear memory blocks after a delay
+                setTimeout(() => {
+                    this.clearMemoryBlocks(jobId);
+                }, 2000);
+            }
+            
+            handleCertificateIssued(event) {
+                const certHash = event.data.certificate_hash;
+                const vertical = event.data.vertical;
+                
+                // Add to certificate ledger
+                this.addCertificateToLedger({
+                    certificate_hash: certHash,
+                    vertical: vertical,
+                    issued_at: event.timestamp,
+                    job_id: event.job_id
+                });
+            }
+            
+            handleError(event) {
+                const jobId = event.job_id || 'unknown';
+                const error = event.data.error_message;
+                const step = event.data.step_name;
+                
+                const errorText = step ? `Error in ${step}: ${error}` : `Error: ${error}`;
+                this.addPipelineEvent(jobId, errorText, 'error');
+                
+                if (event.job_id && this.jobs.has(event.job_id)) {
+                    this.clearMemoryBlocks(event.job_id);
+                }
+            }
+            
+            addPipelineEvent(jobId, message, type) {
+                const feed = document.getElementById('pipelineFeed');
+                const timestamp = new Date().toLocaleTimeString();
+                
+                // Remove placeholder if present
+                if (feed.querySelector('.text-gray-500')) {
+                    feed.innerHTML = '';
+                }
+                
+                const event = document.createElement('div');
+                event.className = `mb-2 p-2 rounded border-l-4 ${this.getEventStyles(type)}`;
+                event.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="text-xs text-gray-400">${timestamp} | Job: ${this.truncateHash(jobId)}</div>
+                            <div class="text-sm mt-1">${message}</div>
+                        </div>
+                    </div>
+                `;
+                
+                feed.insertBefore(event, feed.firstChild);
+                
+                // Keep only last 50 events
+                while (feed.children.length > 50) {
+                    feed.removeChild(feed.lastChild);
+                }
+            }
+            
+            getEventStyles(type) {
+                switch (type) {
+                    case 'success': return 'border-green-500 bg-green-900/20';
+                    case 'error': return 'border-red-500 bg-red-900/20';
+                    case 'step': return 'border-cyan-500 bg-cyan-900/20';
+                    default: return 'border-gray-500 bg-gray-800';
+                }
+            }
+            
+            addCertificateToLedger(cert) {
+                const ledger = document.getElementById('certificateLedger');
+                
+                // Remove placeholder if present
+                if (ledger.querySelector('.text-gray-500')) {
+                    ledger.innerHTML = '';
+                }
+                
+                this.certificateCounter++;
+                const timestamp = new Date(cert.issued_at * 1000).toLocaleString();
+                
+                const item = document.createElement('div');
+                item.className = 'mb-2 p-2 bg-gray-800 rounded border border-gray-700';
+                item.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-bold text-cyan-400">#${this.certificateCounter}</span>
+                        <span class="text-xs text-gray-400">${cert.vertical}</span>
+                    </div>
+                    <div class="hash-text text-cyan-300" onclick="navigator.clipboard.writeText('${cert.certificate_hash}')" title="Click to copy">
+                        ${this.truncateHash(cert.certificate_hash)}
+                    </div>
+                    <div class="text-xs text-gray-400 mt-1">${timestamp}</div>
+                `;
+                
+                ledger.insertBefore(item, ledger.firstChild);
+                
+                // Keep only last 20 certificates
+                while (ledger.children.length > 20) {
+                    ledger.removeChild(ledger.lastChild);
+                }
+            }
+            
+            updateCertificateLedger(certificates) {
+                const ledger = document.getElementById('certificateLedger');
+                ledger.innerHTML = '';
+                
+                certificates.forEach((cert, index) => {
+                    this.certificateCounter = Math.max(this.certificateCounter, certificates.length - index);
+                    this.addCertificateToLedger(cert);
+                });
+            }
+            
+            allocateMemoryBlocks(jobId) {
+                const blocks = this.getRandomMemoryBlocks(32); // Allocate ~32 blocks
+                blocks.forEach(blockId => {
+                    const block = document.getElementById(`mem-${blockId}`);
+                    if (block) {
+                        block.className = 'memory-block allocated';
+                        block.dataset.jobId = jobId;
+                    }
+                });
+            }
+            
+            updateMemoryVisualization(jobId, stepName) {
+                const jobBlocks = document.querySelectorAll(`[data-job-id="${jobId}"]`);
+                
+                if (stepName.includes('inference')) {
+                    jobBlocks.forEach(block => {
+                        block.className = 'memory-block processing';
+                    });
+                } else if (stepName.includes('zeroization_pass_1')) {
+                    jobBlocks.forEach(block => {
+                        block.className = 'memory-block zeroizing-1';
+                    });
+                } else if (stepName.includes('zeroization_pass_2')) {
+                    jobBlocks.forEach(block => {
+                        block.className = 'memory-block zeroizing-2';
+                    });
+                } else if (stepName.includes('zeroization_pass_3')) {
+                    jobBlocks.forEach(block => {
+                        block.className = 'memory-block zeroizing-3';
+                    });
+                }
+            }
+            
+            clearMemoryBlocks(jobId) {
+                const jobBlocks = document.querySelectorAll(`[data-job-id="${jobId}"]`);
+                jobBlocks.forEach((block, index) => {
+                    setTimeout(() => {
+                        block.className = 'memory-block';
+                        delete block.dataset.jobId;
+                    }, index * 50); // Stagger the clearing
+                });
+            }
+            
+            getRandomMemoryBlocks(count) {
+                const available = [];
+                for (let i = 0; i < 200; i++) {
+                    const block = document.getElementById(`mem-${i}`);
+                    if (block && !block.dataset.jobId) {
+                        available.push(i);
+                    }
+                }
+                
+                const selected = [];
+                for (let i = 0; i < Math.min(count, available.length); i++) {
+                    const randomIndex = Math.floor(Math.random() * available.length);
+                    selected.push(available.splice(randomIndex, 1)[0]);
+                }
+                
+                return selected;
+            }
+            
+            truncateHash(hash) {
+                if (!hash) return 'unknown';
+                return hash.length > 12 ? hash.substring(0, 8) + '...' + hash.substring(hash.length - 4) : hash;
+            }
+        }
+        
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new MonitoringDashboard();
+        });
+    </script>
+</body>
+</html>

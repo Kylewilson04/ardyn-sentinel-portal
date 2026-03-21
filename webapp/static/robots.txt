@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ardyn.ai/static/sitemap.xml

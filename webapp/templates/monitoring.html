@@ -1,0 +1,209 @@
+{% extends "enterprise_base.html" %}
+{% block title %}System Monitoring — Ardyn Intelligence{% endblock %}
+{% block page_title %}System Monitoring{% endblock %}
+
+{% block extra_styles %}
+<style>
+.mon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.mon-card { background: var(--surface, #1a2332); border: 1px solid var(--border, #2a3a4a); border-radius: 10px; padding: 20px; position: relative; }
+.mon-card-label { font-size: .75rem; color: var(--text-muted, #8899aa); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.mon-card-value { font-size: 1.75rem; font-weight: 700; color: var(--text, #e8ecf0); }
+.mon-card-sub { font-size: .78rem; color: var(--text-muted, #8899aa); margin-top: 4px; }
+
+.status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+.status-dot.green { background: #16a34a; box-shadow: 0 0 6px #16a34a88; }
+.status-dot.yellow { background: #d97706; box-shadow: 0 0 6px #d9770688; }
+.status-dot.red { background: #dc2626; box-shadow: 0 0 6px #dc262688; }
+.status-dot.gray { background: #6b7280; }
+
+.mon-alert-banner { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: .9rem; display: flex; align-items: center; gap: 8px; }
+.mon-alert-banner.critical { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.mon-alert-banner.warning { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+.mon-alert-banner.info { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+
+.mon-section { background: var(--surface, #1a2332); border: 1px solid var(--border, #2a3a4a); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+.mon-section h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted, #8899aa); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+.mon-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.mon-table th { text-align: left; padding: 8px 12px; color: var(--text-muted, #8899aa); font-weight: 600; font-size: .75rem; text-transform: uppercase; border-bottom: 1px solid var(--border, #2a3a4a); }
+.mon-table td { padding: 8px 12px; border-bottom: 1px solid var(--border, #2a3a4a); color: var(--text, #e8ecf0); }
+
+.mon-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: .75rem; font-weight: 600; text-transform: uppercase; }
+.mon-badge.critical { background: #dc2626; color: #fff; }
+.mon-badge.warning { background: #d97706; color: #fff; }
+.mon-badge.info { background: #2563eb; color: #fff; }
+
+.mon-revenue { color: #16a34a; }
+.mon-mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: .8rem; }
+
+.mon-refresh { font-size: .75rem; color: var(--text-muted, #8899aa); text-align: right; margin-bottom: 8px; }
+
+@media (max-width: 768px) {
+  .mon-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mon-refresh">Auto-refreshes every 60s · <span id="lastRefresh">Loading...</span></div>
+
+<!-- Alert Banners -->
+<div id="alertBanners"></div>
+
+<!-- Summary Cards -->
+<div class="mon-grid">
+  <div class="mon-card">
+    <div class="mon-card-label">System Status</div>
+    <div class="mon-card-value"><span id="statusDot" class="status-dot gray"></span> <span id="statusText">Loading</span></div>
+    <div class="mon-card-sub" id="uptimeText">—</div>
+  </div>
+  <div class="mon-card">
+    <div class="mon-card-label">Events This Month</div>
+    <div class="mon-card-value" id="eventsMonth">—</div>
+    <div class="mon-card-sub">Today: <span id="eventsToday">—</span> · Week: <span id="eventsWeek">—</span></div>
+  </div>
+  <div class="mon-card">
+    <div class="mon-card-label">Revenue This Month</div>
+    <div class="mon-card-value mon-revenue" id="revenue">—</div>
+    <div class="mon-card-sub">$0.79 per event</div>
+  </div>
+  <div class="mon-card">
+    <div class="mon-card-label">TEE VM</div>
+    <div class="mon-card-value"><span id="teeDot" class="status-dot gray"></span> <span id="teeText">Checking</span></div>
+    <div class="mon-card-sub" id="teeDetail">—</div>
+  </div>
+  <div class="mon-card">
+    <div class="mon-card-label">Error Rate</div>
+    <div class="mon-card-value" id="errorRate">—</div>
+    <div class="mon-card-sub" id="errorDetail">—</div>
+  </div>
+  <div class="mon-card">
+    <div class="mon-card-label">Disk Space</div>
+    <div class="mon-card-value" id="diskUsed">—</div>
+    <div class="mon-card-sub" id="diskDetail">—</div>
+  </div>
+</div>
+
+<!-- Top Models & Latency -->
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+  <div class="mon-section">
+    <h3>📊 Top Models</h3>
+    <table class="mon-table">
+      <thead><tr><th>Model</th><th>Count</th></tr></thead>
+      <tbody id="topModels"><tr><td colspan="2">Loading...</td></tr></tbody>
+    </table>
+  </div>
+  <div class="mon-section">
+    <h3>⚡ Performance</h3>
+    <table class="mon-table">
+      <tbody>
+        <tr><td>Avg Latency</td><td class="mon-mono" id="avgLatency">—</td></tr>
+        <tr><td>Memory Usage</td><td class="mon-mono" id="memUsage">—</td></tr>
+        <tr><td>DB Size</td><td class="mon-mono" id="dbSize">—</td></tr>
+        <tr><td>Total Users</td><td class="mon-mono" id="totalUsers">—</td></tr>
+        <tr><td>Total Jobs</td><td class="mon-mono" id="totalJobs">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Recent Alerts -->
+<div class="mon-section">
+  <h3>🔔 Recent Alerts</h3>
+  <table class="mon-table">
+    <thead><tr><th>Level</th><th>Check</th><th>Message</th><th>Time</th></tr></thead>
+    <tbody id="recentAlerts"><tr><td colspan="4">Loading...</td></tr></tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function fmt(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts * 1000);
+  return d.toLocaleString();
+}
+function fmtDur(s) {
+  if (!s) return '—';
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+async function refresh() {
+  try {
+    const [health, metrics] = await Promise.all([
+      fetch('/api/monitoring/health').then(r => r.json()),
+      fetch('/api/monitoring/metrics').then(r => r.json())
+    ]);
+
+    // Status
+    const st = health.overall || 'unknown';
+    const dot = document.getElementById('statusDot');
+    dot.className = 'status-dot ' + (st === 'healthy' ? 'green' : st === 'warning' ? 'yellow' : 'red');
+    document.getElementById('statusText').textContent = st.charAt(0).toUpperCase() + st.slice(1);
+    document.getElementById('uptimeText').textContent = 'Uptime: ' + fmtDur(health.webapp?.uptime_seconds);
+
+    // Events
+    document.getElementById('eventsMonth').textContent = metrics.events?.this_month ?? '—';
+    document.getElementById('eventsToday').textContent = metrics.events?.today ?? '—';
+    document.getElementById('eventsWeek').textContent = metrics.events?.this_week ?? '—';
+    document.getElementById('revenue').textContent = '$' + (metrics.revenue_this_month ?? 0).toFixed(2);
+
+    // TEE
+    const tee = health.tee_vm || {};
+    const teeDot = document.getElementById('teeDot');
+    if (tee.status === 'online') { teeDot.className = 'status-dot green'; document.getElementById('teeText').textContent = 'Online'; }
+    else if (tee.status === 'deallocated') { teeDot.className = 'status-dot yellow'; document.getElementById('teeText').textContent = 'Deallocated'; }
+    else { teeDot.className = 'status-dot red'; document.getElementById('teeText').textContent = 'Error'; }
+    document.getElementById('teeDetail').textContent = tee.detail || (tee.models ? tee.models.join(', ') : '—');
+
+    // Error rate
+    document.getElementById('errorRate').textContent = (metrics.error_rate_percent ?? 0) + '%';
+    document.getElementById('errorDetail').textContent = `${metrics.failed_jobs}/${metrics.total_jobs} failed this month`;
+
+    // Disk
+    const d = health.disk || {};
+    document.getElementById('diskUsed').textContent = d.percent_used ? d.percent_used + '%' : '—';
+    document.getElementById('diskDetail').textContent = d.free_gb ? `${d.free_gb}GB free of ${d.total_gb}GB` : '—';
+
+    // Performance
+    document.getElementById('avgLatency').textContent = metrics.avg_latency_seconds ? metrics.avg_latency_seconds + 's' : '—';
+    document.getElementById('memUsage').textContent = health.webapp?.memory_mb ? health.webapp.memory_mb + ' MB' : '—';
+    document.getElementById('dbSize').textContent = health.database?.size_mb ? health.database.size_mb + ' MB' : '—';
+    document.getElementById('totalUsers').textContent = health.database?.users ?? '—';
+    document.getElementById('totalJobs').textContent = health.database?.jobs ?? '—';
+
+    // Top models
+    const tbody = document.getElementById('topModels');
+    if (metrics.top_models?.length) {
+      tbody.innerHTML = metrics.top_models.map(m => `<tr><td class="mon-mono">${m.model || 'unknown'}</td><td>${m.count}</td></tr>`).join('');
+    } else {
+      tbody.innerHTML = '<tr><td colspan="2">No data</td></tr>';
+    }
+
+    // Alerts
+    const ab = document.getElementById('alertBanners');
+    const al = document.getElementById('recentAlerts');
+    const alerts = metrics.recent_alerts || [];
+
+    // Banners for active critical/warning
+    const active = alerts.filter(a => a.level === 'critical' || a.level === 'warning').slice(0, 3);
+    ab.innerHTML = active.map(a => `<div class="mon-alert-banner ${a.level}">${a.level === 'critical' ? '🚨' : '⚠️'} <strong>${a.check_name}</strong>: ${a.message}</div>`).join('');
+
+    if (alerts.length) {
+      al.innerHTML = alerts.map(a => `<tr><td><span class="mon-badge ${a.level}">${a.level}</span></td><td>${a.check_name}</td><td>${a.message}</td><td class="mon-mono">${fmt(a.created_at)}</td></tr>`).join('');
+    } else {
+      al.innerHTML = '<tr><td colspan="4" style="color:var(--text-muted)">No recent alerts ✓</td></tr>';
+    }
+
+    document.getElementById('lastRefresh').textContent = new Date().toLocaleTimeString();
+  } catch(e) {
+    console.error('Monitoring refresh error:', e);
+  }
+}
+
+refresh();
+setInterval(refresh, 60000);
+</script>
+{% endblock %}

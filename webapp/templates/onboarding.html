@@ -1,0 +1,115 @@
+{% extends "enterprise_base.html" %}
+{% block title %}Quick Setup — Ardyn Intelligence{% endblock %}
+{% block page_title %}Welcome to Ardyn Intelligence{% endblock %}
+{% block content %}
+<style>
+.onboarding-simple{max-width:500px;margin:0 auto;padding:40px 24px}
+.onboarding-simple h1{font-size:2rem;margin:0 0 8px;color:#1a1a1a;text-align:center}
+.onboarding-simple .subtitle{text-align:center;color:#666;margin-bottom:32px;font-size:1.1rem}
+
+.form-card{background:#fff;border:1px solid #e5e5e5;border-radius:16px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+
+.form-group{margin-bottom:24px}
+.form-group label{display:block;font-weight:600;color:#1a1a1a;margin-bottom:8px;font-size:.95rem}
+.form-group input,.form-group select{width:100%;padding:12px 16px;border:1px solid #d4d4d4;border-radius:12px;font-size:1rem;transition:border-color .2s}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:#D97706}
+
+.btn-submit{width:100%;background:#D97706;color:#fff;border:none;padding:16px;border-radius:12px;font-size:1.1rem;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-submit:hover{background:#b45309}
+
+.skip-link{display:block;text-align:center;margin-top:16px;color:#666;font-size:.9rem}
+.skip-link a{color:#D97706;text-decoration:none}
+.skip-link a:hover{text-decoration:underline}
+</style>
+
+<div class="onboarding-simple">
+  <h1>👋 Welcome</h1>
+  <p class="subtitle">Let's get you set up in 30 seconds</p>
+  
+  <div class="form-card">
+    <form method="POST" action="/onboarding">
+      <div class="form-group">
+        <label for="display_name">What should we call you?</label>
+        <input type="text" id="display_name" name="display_name" 
+               placeholder="e.g., Dr. Smith, Sarah, Dr. Johnson" 
+               required maxlength="50">
+      </div>
+      
+      <div class="form-group">
+        <label for="vertical">Your Department</label>
+        <select id="vertical" name="vertical" required onchange="updatePositions()">
+          <option value="">Select department first...</option>
+          <option value="healthcare">Healthcare / Clinical</option>
+          <option value="legal">Legal / Counsel</option>
+          <option value="general">General / Administration</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="position">Your Position</label>
+        <select id="position" name="position" required disabled>
+          <option value="">Select department first...</option>
+        </select>
+      </div>
+      
+      <button type="submit" class="btn-submit">Get Started →</button>
+    </form>
+    
+    <div class="skip-link">
+      <a href="/clinical">Skip setup → Go to Clinical Portal</a>
+    </div>
+  </div>
+</div>
+
+<script>
+const positions = {
+  healthcare: [
+    {value: "", text: "Select your role..."},
+    {value: "physician", text: "Physician / Doctor"},
+    {value: "nurse", text: "Nurse"},
+    {value: "clinical_admin", text: "Clinical Administrator"},
+    {value: "admin", text: "System Administrator"},
+    {value: "other", text: "Other"}
+  ],
+  legal: [
+    {value: "", text: "Select your role..."},
+    {value: "attorney", text: "Attorney"},
+    {value: "paralegal", text: "Paralegal"},
+    {value: "legal_admin", text: "Legal Administrator"},
+    {value: "admin", text: "System Administrator"},
+    {value: "other", text: "Other"}
+  ],
+  general: [
+    {value: "", text: "Select your role..."},
+    {value: "admin", text: "System Administrator"},
+    {value: "other", text: "Other"}
+  ]
+};
+
+function updatePositions() {
+  const vertical = document.getElementById('vertical').value;
+  const positionSelect = document.getElementById('position');
+  
+  // Clear current options
+  positionSelect.innerHTML = '';
+  
+  if (vertical && positions[vertical]) {
+    // Enable and populate
+    positionSelect.disabled = false;
+    positions[vertical].forEach(pos => {
+      const option = document.createElement('option');
+      option.value = pos.value;
+      option.textContent = pos.text;
+      positionSelect.appendChild(option);
+    });
+  } else {
+    // Disable if no department selected
+    positionSelect.disabled = true;
+    const option = document.createElement('option');
+    option.value = "";
+    option.textContent = "Select department first...";
+    positionSelect.appendChild(option);
+  }
+}
+</script>
+{% endblock %}

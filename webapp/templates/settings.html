@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Settings — ADS{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block content %}
+<div class="settings-grid">
+  <div class="card">
+    <h3>API Key</h3>
+    <p class="text-muted">Regenerate your API key. The old key will be invalidated immediately.</p>
+    <button class="btn btn-outline" onclick="regenKey()">Regenerate API Key</button>
+    <div id="new-key-display" style="display:none" class="new-key-box">
+      <p>New API Key (copy now — it won't be shown again):</p>
+      <code id="new-key-value"></code>
+      <button class="btn btn-sm btn-outline" onclick="navigator.clipboard.writeText(document.getElementById('new-key-value').textContent)">Copy</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Change Password</h3>
+    <form onsubmit="changePassword(event)">
+      <div class="form-group">
+        <label>Current Password</label>
+        <input type="password" id="current-pw" class="input" required>
+      </div>
+      <div class="form-group">
+        <label>New Password</label>
+        <input type="password" id="new-pw" class="input" required minlength="8">
+      </div>
+      <button type="submit" class="btn btn-primary">Update Password</button>
+      <span id="pw-status" style="margin-left:12px"></span>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Account</h3>
+    <p class="text-muted">{{ user.email }}</p>
+  </div>
+
+  <div class="card">
+    <h3>Jurisdiction</h3>
+    <p class="text-muted">Select your organization's jurisdiction for compliance and data routing.</p>
+    <form onsubmit="updateJurisdiction(event)">
+      <div class="form-group">
+        <label>Country/Region</label>
+        <select id="jurisdiction-select" class="input">
+          <option value="us">🇺🇸 United States</option>
+          <option value="ca">🇨🇦 Canada</option>
+          <option value="ca-ab">🇨🇦 Canada — Alberta</option>
+          <option value="ca-bc">🇨🇦 Canada — British Columbia</option>
+          <option value="ca-on">🇨🇦 Canada — Ontario</option>
+          <option value="ca-qc">🇨🇦 Canada — Quebec</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Industry Vertical</label>
+        <select id="vertical-select" class="input">
+          <option value="general">General Enterprise</option>
+          <option value="healthcare">Healthcare (HIPAA)</option>
+          <option value="legal">Legal Services</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Save Settings</button>
+      <span id="jurisdiction-status" style="margin-left:12px"></span>
+    </form>
+  </div>
+
+  <div class="card danger-zone">
+    <h3>Danger Zone</h3>
+    <p class="text-muted">Permanently delete your account and all associated data.</p>
+    <button class="btn btn-danger" onclick="deleteAccount()">Delete Account</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function regenKey() {
+  if (!confirm('Regenerate API key? The current key will stop working.')) return;
+  try {
+    const r = await api('/api/settings/regenerate-key', {method:'POST'});
+    document.getElementById('new-key-value').textContent = r.api_key;
+    document.getElementById('new-key-display').style.display = 'block';
+  } catch(e) { alert('Failed'); }
+}
+
+async function changePassword(e) {
+  e.preventDefault();
+  const st = document.getElementById('pw-status');
+  try {
+    await api('/api/settings/password', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({current_password: document.getElementById('current-pw').value, new_password: document.getElementById('new-pw').value})
+    });
+    st.textContent = '✓ Updated'; st.className = 'verify-ok';
+    document.getElementById('current-pw').value = '';
+    document.getElementById('new-pw').value = '';
+  } catch(e) { st.textContent = '✗ Failed'; st.className = 'verify-fail'; }
+}
+
+async function deleteAccount() {
+  if (!confirm('DELETE your account? This cannot be undone.')) return;
+  if (!confirm('Are you absolutely sure?')) return;
+  await api('/api/settings/account', {method:'DELETE'});
+  location.href = '/logout';
+}
+
+async function updateJurisdiction(e) {
+  e.preventDefault();
+  const st = document.getElementById('jurisdiction-status');
+  try {
+    await api('/api/settings/profile', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        jurisdiction: document.getElementById('jurisdiction-select').value,
+        vertical: document.getElementById('vertical-select').value
+      })
+    });
+    st.textContent = '✓ Saved — refresh to see updated navigation'; st.className = 'verify-ok';
+  } catch(e) { st.textContent = '✗ Failed'; st.className = 'verify-fail'; }
+}
+
+// Load current settings on page load
+async function loadProfile() {
+  try {
+    const r = await api('/api/settings/profile');
+    document.getElementById('jurisdiction-select').value = r.jurisdiction || 'us';
+    document.getElementById('vertical-select').value = r.vertical || 'general';
+  } catch(e) { console.log('Could not load profile'); }
+}
+loadProfile();
+</script>
+{% endblock %}

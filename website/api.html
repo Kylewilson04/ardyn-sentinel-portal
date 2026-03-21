@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API — Ardyn Sentinel</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0e17;
+      --card: #111827;
+      --border: #1e293b;
+      --text: #f1f5f9;
+      --text-dim: #94a3b8;
+      --gold: #f59e0b;
+      --green: #10b981;
+      --red: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+    
+    h1 {
+      font-size: 2.2rem;
+      margin-bottom: 8px;
+    }
+    h1 span { color: var(--gold); }
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 1.1rem;
+      margin-bottom: 40px;
+    }
+
+    .endpoint-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .method {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 4px;
+      margin-right: 12px;
+    }
+    .method.get { background: var(--green); color: #000; }
+    .method.post { background: var(--gold); color: #000; }
+
+    .url {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1rem;
+      color: var(--text-dim);
+    }
+
+    .description {
+      color: var(--text-dim);
+      margin: 16px 0;
+    }
+
+    .code-block {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      margin-top: 12px;
+    }
+    .code-block code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: #e6edf3;
+      white-space: pre;
+    }
+
+    .response-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      margin-top: 16px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--green);
+    }
+    .response-badge.error {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--red);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin: 30px 0;
+    }
+    .stat-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-box .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+    }
+    .stat-box .value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-top: 4px;
+    }
+
+    .try-it {
+      margin-top: 20px;
+    }
+    .try-it button {
+      background: var(--gold);
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .try-it button:hover {
+      background: #fbbf24;
+    }
+
+    .result {
+      margin-top: 16px;
+      display: none;
+    }
+    .result.show { display: block; }
+    .result pre {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: #e6edf3;
+      max-height: 400px;
+      overflow: auto;
+    }
+
+    .nav-link {
+      color: var(--gold);
+      text-decoration: none;
+    }
+    .nav-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Ardyn <span>Sentinel</span> API</h1>
+    <p class="subtitle">Production API for runtime enforcement and verification with DDC issuance.</p>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="label">DDCs Issued</div>
+        <div class="value" id="ddcs">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">Total Jobs</div>
+        <div class="value" id="jobs">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">Uptime</div>
+        <div class="value" id="uptime">—</div>
+      </div>
+    </div>
+
+    <div class="endpoint-card">
+      <span class="method get">GET</span>
+      <span class="url">/v1/metrics/public</span>
+      <p class="description">Public trust metrics — no authentication required. Returns aggregate statistics about DDC issuance and system health.</p>
+      <div class="code-block"><code>curl https://api.ardyn.ai/v1/metrics/public</code></div>
+      <div class="try-it">
+        <button onclick="tryMetrics()">Try it</button>
+        <div class="result" id="result1">
+          <pre id="output1"></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="endpoint-card">
+      <span class="method post">POST</span>
+      <span class="url">/v1/sovereign-inference</span>
+      <p class="description">Execute through Ardyn's enforcement layer with DDC issuance. Requires <code>X-Gateway-Secret</code> header authentication.</p>
+      <div class="code-block"><code>curl -X POST https://api.ardyn.ai/v1/sovereign-inference \
+  -H "Content-Type: application/json" \
+  -H "X-Gateway-Secret: your-secret-here" \
+  -d '{"model": "llama3.2", "prompt": "Hello"}'</code></div>
+      <div class="response-badge">
+        Returns: { ddc: "...", verification: "...", result: "..." }
+      </div>
+    </div>
+
+    <div class="endpoint-card">
+      <span class="method get">GET</span>
+      <span class="url">/health</span>
+      <p class="description">Simple health check endpoint.</p>
+      <div class="code-block"><code>curl https://api.ardyn.ai/health</code></div>
+    </div>
+
+    <p style="margin-top: 40px; color: var(--text-dim);">
+      <a href="/trust" class="nav-link">View Trust Dashboard</a> ·
+      <a href="https://ardyn.ai/docs" class="nav-link">Documentation</a> ·
+      <a href="https://ardyn.ai" class="nav-link">Home</a>
+    </p>
+  </div>
+
+  <script>
+    function fmt(n) {
+      if (n == null) return '—';
+      return n.toLocaleString();
+    }
+    function uptime(s) {
+      if (!s) return '—';
+      const d = Math.floor(s / 86400);
+      const h = Math.floor((s % 86400) / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      if (d > 0) return d + 'd ' + h + 'h';
+      if (h > 0) return h + 'h ' + m + 'm';
+      return m + 'm';
+    }
+
+    async function loadStats() {
+      try {
+        const resp = await fetch('/api/metrics/public');
+        const d = await resp.json();
+        document.getElementById('ddcs').textContent = fmt(d.total_ddcs_issued);
+        document.getElementById('jobs').textContent = fmt(d.total_jobs);
+        document.getElementById('uptime').textContent = uptime(d.gateway_uptime_seconds);
+      } catch(e) {
+        console.error(e);
+      }
+    }
+    loadStats();
+
+    async function tryMetrics() {
+      const out = document.getElementById('output1');
+      const result = document.getElementById('result1');
+      result.classList.add('show');
+      out.textContent = 'Loading...';
+      try {
+        const resp = await fetch('https://api.ardyn.ai/v1/metrics/public');
+        const data = await resp.json();
+        out.textContent = JSON.stringify(data, null, 2);
+      } catch(e) {
+        out.textContent = 'Error: ' + e.message;
+      }
+    }
+  </script>
+</body>
+</html>

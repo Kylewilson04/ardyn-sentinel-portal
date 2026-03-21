@@ -1,0 +1,71 @@
+{% extends "enterprise_base.html" %}
+{% block title %}Dashboard — Ardyn{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+<div class="stats-grid" id="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon blue"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5,3 19,12 5,21"/></svg></div>
+    <div class="stat-info"><span class="stat-value" id="stat-inferences">—</span><span class="stat-label">Total Inferences</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 6h18M8 6V4h8v2M5 6v14a2 2 0 002 2h10a2 2 0 002-2V6"/></svg></div>
+    <div class="stat-info"><span class="stat-value" id="stat-destroyed">—</span><span class="stat-label">Data Destroyed</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L3 7v6c0 5.25 3.75 10.13 9 11.25C17.25 23.13 21 18.25 21 13V7l-9-5z"/><path d="M9 12l2 2 4-4"/></svg></div>
+    <div class="stat-info"><span class="stat-value" id="stat-proofs">—</span><span class="stat-label">Proofs Generated</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon purple"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
+    <div class="stat-info"><span class="stat-value" id="stat-cost">—</span><span class="stat-label">Total Cost</span></div>
+  </div>
+</div>
+
+<div class="card api-key-card">
+  <h3>Your API Key</h3>
+  <div class="api-key-display">
+    <code id="api-key-preview">Loading...</code>
+    <button class="btn btn-sm btn-outline" onclick="copyApiKey()">Copy</button>
+    <a href="/settings" class="btn btn-sm btn-outline">Regenerate</a>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Recent Activity</h3>
+  <div class="table-wrap">
+    <table class="data-table" id="recent-table">
+      <thead><tr><th>Time</th><th>Prompt</th><th>Model</th><th>Status</th><th>Tokens</th><th>Cost</th></tr></thead>
+      <tbody id="recent-body"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadDashboard() {
+  try {
+    const [stats, recent] = await Promise.all([api('/api/stats'), api('/api/recent')]);
+    document.getElementById('stat-inferences').textContent = stats.total_inferences;
+    document.getElementById('stat-destroyed').textContent = stats.total_destroyed;
+    document.getElementById('stat-proofs').textContent = stats.total_proofs;
+    document.getElementById('stat-cost').textContent = '$' + stats.total_cost.toFixed(4);
+    document.getElementById('api-key-preview').textContent = stats.api_key_preview || 'No key';
+
+    const tbody = document.getElementById('recent-body');
+    if (recent.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">No inferences yet. Try the <a href="/playground">Playground</a>!</td></tr>';
+    } else {
+      tbody.innerHTML = recent.map(j => `<tr class="clickable" onclick="location.href='/proofs#${j.id}'">
+        <td>${timeAgo(j.created_at)}</td>
+        <td class="prompt-preview">${esc(j.prompt?.substring(0,60) || '—')}${j.prompt?.length > 60 ? '…' : ''}</td>
+        <td><span class="model-badge">${shortModel(j.model)}</span></td>
+        <td><span class="status-badge ${j.status}">${j.status}</span></td>
+        <td>${(j.input_tokens||0) + (j.output_tokens||0)}</td>
+        <td>$${(j.cost_usd||0).toFixed(6)}</td>
+      </tr>`).join('');
+    }
+  } catch(e) { console.error(e); }
+}
+loadDashboard();
+</script>
+{% endblock %}

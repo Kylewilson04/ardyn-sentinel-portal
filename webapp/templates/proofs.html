@@ -1,0 +1,218 @@
+{% extends "enterprise_base.html" %}
+{% block title %}Proofs — Ardyn AI{% endblock %}
+{% block page_title %}Sovereignty Proofs{% endblock %}
+{% block content %}
+<style>
+.proofs-container{display:grid;gap:24px}
+.proof-section{background:#fff;border-radius:12px;padding:24px;border:1px solid #e5e5e5}
+.proof-section h3{margin:0 0 16px;font-size:1.1rem;color:#1a1a1a;display:flex;align-items:center;gap:8px}
+.proof-section h3 .count{background:#D97706;color:#fff;font-size:.75rem;padding:2px 8px;border-radius:12px}
+.death-cert-grid{display:grid;gap:16px}
+.death-cert{background:#f8f9fa;border-radius:8px;padding:16px;border-left:4px solid #22c55e}
+.death-cert.failed{border-left-color:#ef4444}
+.death-cert-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.death-cert-status{display:flex;align-items:center;gap:6px;font-size:.8rem;font-weight:600}
+.death-cert-status.verified{color:#16a34a}
+.death-cert-status.failed{color:#dc2626}
+.death-cert-time{font-size:.75rem;color:#888}
+.death-cert-field{margin-bottom:8px}
+.death-cert-field label{display:block;font-size:.7rem;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.death-cert-field code{font-family:'JetBrains Mono',monospace;font-size:.8rem;background:#e5e5e5;padding:2px 6px;border-radius:4px;word-break:break-all}
+.death-cert-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid #e5e5e5}
+.death-cert-stat{text-align:center}
+.death-cert-stat .value{font-size:1rem;font-weight:700;color:#1a1a1a}
+.death-cert-stat .label{font-size:.65rem;color:#888;text-transform:uppercase}
+.empty-state{text-align:center;padding:48px;color:#888}
+.empty-state svg{margin-bottom:16px;opacity:.5}
+.chain-status{padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:.9rem;display:none}
+.chain-status.show{display:block}
+.chain-status.verified{background:#dcfce7;color:#166534}
+.chain-status.failed{background:#fee2e2;color:#991b1b}
+.chain-status.pending{background:#fef3c7;color:#92400e}
+.btn-verify{background:#D97706;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:.9rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px}
+.btn-verify:hover{background:#b45309}
+.sovereignty-event{display:flex;align-items:center;gap:12px;padding:12px;background:#f8f9fa;border-radius:8px;margin-bottom:8px}
+.sovereignty-event .event-icon{width:36px;height:36px;background:#D97706;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff}
+.sovereignty-event .event-details{flex:1}
+.sovereignty-event .event-title{font-size:.9rem;font-weight:600;color:#1a1a1a}
+.sovereignty-event .event-meta{font-size:.75rem;color:#888}
+.sovereignty-event .event-hash{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:#666}
+.tabs{display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid #e5e5e5;padding-bottom:8px}
+.tab{cursor:pointer;padding:8px 16px;border-radius:8px;font-size:.9rem;color:#666;transition:all .15s}
+.tab:hover{background:#f5f5f4}
+.tab.active{background:#f5f5f4;color:#D97706;font-weight:600}
+.tab-content{display:none}
+.tab-content.active{display:block}
+</style>
+
+<div class="proofs-container">
+  <!-- Chain Verification -->
+  <div class="proof-section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3>🔐 Attestation Chain</h3>
+      <div style="display:flex;gap:12px">
+        <a href="/ledger" class="btn-verify" style="text-decoration:none;background:#f5f5f4;color:#1a1a1a">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+          View Global Ledger
+        </a>
+        <button class="btn-verify" onclick="verifyChain()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L3 7v6c0 5.25 3.75 10.13 9 11.25C17.25 23.13 21 18.25 21 13V7l-9-5z"/><path d="M9 12l2 2 4-4"/></svg>
+          Verify Chain Integrity
+        </button>
+      </div>
+    </div>
+    <div id="chain-status" class="chain-status"></div>
+    <p style="margin:0;font-size:.85rem;color:#666">Every chat message generates a sovereignty proof with a death certificate. These proofs form an immutable chain of data destruction attestations. <a href="/ledger" style="color:#D97706">View the global ledger</a> to see all system-wide destruction events.</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('certificates')" data-tab="certificates">Death Certificates</div>
+    <div class="tab" onclick="switchTab('events')" data-tab="events">Sovereignty Events</div>
+  </div>
+
+  <!-- Death Certificates Tab -->
+  <div id="tab-certificates" class="tab-content active">
+    <div class="proof-section">
+      <h3>📜 Death Certificates <span class="count" id="cert-count">0</span></h3>
+      <div id="certificates-list" class="death-cert-grid">
+        <div class="empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+          <p>No death certificates yet.</p>
+          <p style="font-size:.8rem">Start chatting to generate sovereignty proofs.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sovereignty Events Tab -->
+  <div id="tab-events" class="tab-content">
+    <div class="proof-section">
+      <h3>⚡ Sovereignty Events <span class="count" id="event-count">0</span></h3>
+      <div id="events-list">
+        <div class="empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          <p>No sovereignty events yet.</p>
+          <p style="font-size:.8rem">Each inference generates a sovereignty event with proof of data destruction.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let allProofs = [];
+
+async function loadProofs() {
+  try {
+    const proofs = await fetch('/api/proofs', {credentials: 'include'}).then(r => r.json());
+    allProofs = proofs;
+    
+    document.getElementById('cert-count').textContent = proofs.length;
+    document.getElementById('event-count').textContent = proofs.length;
+    
+    if (proofs.length === 0) return;
+    
+    // Render death certificates
+    const certList = document.getElementById('certificates-list');
+    certList.innerHTML = proofs.map(p => renderDeathCertificate(p)).join('');
+    
+    // Render sovereignty events
+    const eventList = document.getElementById('events-list');
+    eventList.innerHTML = proofs.map(p => renderSovereigntyEvent(p)).join('');
+    
+  } catch(e) { 
+    console.error('Failed to load proofs:', e);
+  }
+}
+
+function renderDeathCertificate(p) {
+  const cert = p.certificate || {};
+  const zero = cert.zeroization || {};
+  const isVerified = p.verified && zero.three_pass_verified;
+  
+  return `
+    <div class="death-cert ${isVerified ? '' : 'failed'}">
+      <div class="death-cert-header">
+        <span class="death-cert-status ${isVerified ? 'verified' : 'failed'}">
+          ${isVerified ? '✓ Verified' : '✗ Failed'}
+        </span>
+        <span class="death-cert-time">${new Date(p.timestamp*1000).toLocaleString()}</span>
+      </div>
+      <div class="death-cert-field">
+        <label>Certificate ID</label>
+        <code>${cert.certificate_id || 'N/A'}</code>
+      </div>
+      <div class="death-cert-field">
+        <label>Destruction Nonce</label>
+        <code>${(cert.destruction_nonce || '').substring(0, 32)}…</code>
+      </div>
+      <div class="death-cert-field">
+        <label>Zeroization Proof</label>
+        <code>${(zero.proof_hash || '').substring(0, 32)}…</code>
+      </div>
+      <div class="death-cert-stats">
+        <div class="death-cert-stat">
+          <div class="value">${zero.overwrite_passes || 3}</div>
+          <div class="label">Passes</div>
+        </div>
+        <div class="death-cert-stat">
+          <div class="value">${(zero.latency_ms || 0).toFixed(1)}ms</div>
+          <div class="label">Latency</div>
+        </div>
+        <div class="death-cert-stat">
+          <div class="value">${isVerified ? 'YES' : 'NO'}</div>
+          <div class="label">Verified</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSovereigntyEvent(p) {
+  const token = p.certificate?.usage_token || {};
+  
+  return `
+    <div class="sovereignty-event">
+      <div class="event-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L3 7v6c0 5.25 3.75 10.13 9 11.25C17.25 23.13 21 18.25 21 13V7l-9-5z"/><path d="M9 12l2 2 4-4"/></svg>
+      </div>
+      <div class="event-details">
+        <div class="event-title">Inference #${p.counter_value || 'N/A'}</div>
+        <div class="event-meta">${new Date(p.timestamp*1000).toLocaleString()}</div>
+        <div class="event-hash">Hash: ${(p.proof_hash || '').substring(0, 24)}…</div>
+      </div>
+    </div>
+  `;
+}
+
+async function verifyChain() {
+  const el = document.getElementById('chain-status');
+  el.className = 'chain-status pending show';
+  el.textContent = 'Verifying attestation chain integrity...';
+  
+  try {
+    const r = await fetch('/api/verify-chain', {method: 'POST', credentials: 'include'}).then(r => r.json());
+    if (r.integrity) {
+      el.className = 'chain-status verified show';
+      el.textContent = `✓ Chain integrity verified — ${r.verified}/${r.total} proofs cryptographically valid`;
+    } else {
+      el.className = 'chain-status failed show';
+      el.textContent = `✗ Chain integrity check: ${r.verified}/${r.total} valid`;
+    }
+  } catch(e) {
+    el.className = 'chain-status failed show';
+    el.textContent = '✗ Verification failed: ' + e.message;
+  }
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById(`tab-${tab}`).classList.add('active');
+}
+
+loadProofs();
+</script>
+{% endblock %}

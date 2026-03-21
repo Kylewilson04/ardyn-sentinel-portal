@@ -1,0 +1,160 @@
+{% extends "enterprise_base.html" %}
+
+{% block title %}Documents — Ardyn AI{% endblock %}
+{% block page_title %}Documents{% endblock %}
+
+{% block extra_styles %}
+<style>
+.upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 48px;
+  text-align: center;
+  background: var(--bg);
+  margin-bottom: 24px;
+}
+
+.upload-area:hover {
+  border-color: var(--primary);
+  background: rgba(30, 58, 95, 0.02);
+}
+
+.upload-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
+  color: var(--text-muted);
+}
+
+.document-list {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.doc-item {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+}
+
+.doc-item:last-child {
+  border-bottom: none;
+}
+
+.doc-icon {
+  width: 40px;
+  height: 40px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doc-info {
+  flex: 1;
+}
+
+.doc-name {
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.doc-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.doc-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: white;
+  cursor: pointer;
+}
+
+.btn-sm:hover {
+  background: var(--bg);
+}
+
+.security-notice {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: #166534;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Security Notice -->
+<div class="security-notice">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M12 2L3 7v6c0 5.25 3.75 10.13 9 11.25C17.25 23.13 21 18.25 21 13V7l-9-5z"/>
+    <path d="M9 12l2 2 4-4"/>
+  </svg>
+  <span>All documents are scanned for PHI/Privilege, encrypted, and stored in your secure vault.</span>
+</div>
+
+<!-- Upload Area -->
+<div class="upload-area" onclick="document.getElementById('fileInput').click()">
+  <div class="upload-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+  </div>
+  <h3>Upload Documents</h3>
+  <p style="color: var(--text-muted); font-size: 14px; margin-top: 8px;">
+    Click to browse or drag and drop files here
+  </p>
+  <p style="color: var(--text-muted); font-size: 12px; margin-top: 4px;">
+    Supports PDF, DOCX, TXT (max 50MB)
+  </p>
+  <input type="file" id="fileInput" style="display: none;" multiple accept=".pdf,.docx,.txt,.md">
+</div>
+
+<!-- Document List -->
+<div class="document-list">
+  <div class="doc-item" style="background: #f8fafc;">
+    <div style="flex: 1; font-weight: 600; font-size: 14px;">Name</div>
+    <div style="width: 120px; font-weight: 600; font-size: 14px;">Type</div>
+    <div style="width: 100px; font-weight: 600; font-size: 14px;">Size</div>
+    <div style="width: 150px; font-weight: 600; font-size: 14px;">Uploaded</div>
+    <div style="width: 100px;"></div>
+  </div>
+  <div class="doc-item" id="emptyState">
+    <div style="text-align: center; color: var(--text-muted); padding: 32px; flex: 1;">
+      No documents yet. Upload your first document above.
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const files = e.target.files;
+  if (files.length > 0) {
+    alert('Upload functionality would process ' + files.length + ' file(s). This is a UI demo.');
+  }
+});
+</script>
+{% endblock %}
