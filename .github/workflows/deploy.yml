@@ -52,8 +52,6 @@ jobs:
     environment:
       name: production
       url: https://ardyn.ai
-    environment:
-      name: production
     steps:
       - uses: actions/checkout@v4
 
