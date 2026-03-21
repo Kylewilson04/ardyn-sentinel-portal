@@ -3,14 +3,14 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, Query
 from auth import get_current_user
 
-# Import the ledger from ADS core
+# Ledger backend — use immutable_ledger (local, boot-safe)
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "src"))
-from attestation_ledger import AttestationLedger
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from immutable_ledger import get_immutable_ledger
 
 router = APIRouter(prefix="/api")
-ledger = AttestationLedger()
+_ledger_backend = get_immutable_ledger()
 
 @router.get("/ledger")
 async def get_ledger(
@@ -20,7 +20,7 @@ async def get_ledger(
 ):
     """Get global attestation ledger entries."""
     try:
-        all_certs = ledger.get_all()
+        all_certs = _ledger_backend.get_all()
         total = len(all_certs)
 
         # Paginate
@@ -45,8 +45,8 @@ async def get_ledger(
             "total": total,
             "offset": offset,
             "limit": limit,
-            "chain_valid": ledger.verify_chain(),
-            "chain_length": ledger.chain_length
+            "chain_valid": _ledger_backend.verify_chain(),
+            "chain_length": _ledger_backend.chain_length
         }
     except Exception as e:
         raise HTTPException(500, f"Failed to get ledger: {e}")
@@ -58,7 +58,7 @@ async def search_ledger(
 ):
     """Search ledger by hash (proof_hash, attestation_hash, record_hash, or job_id)."""
     try:
-        all_certs = ledger.get_all()
+        all_certs = _ledger_backend.get_all()
         hash_lower = hash.lower()
 
         matches = []
@@ -88,7 +88,7 @@ async def search_ledger(
             "query": hash,
             "matches": matches,
             "count": len(matches),
-            "chain_valid": ledger.verify_chain()
+            "chain_valid": _ledger_backend.verify_chain()
         }
     except Exception as e:
         raise HTTPException(500, f"Search failed: {e}")
@@ -97,7 +97,7 @@ async def search_ledger(
 async def get_ledger_stats(user=Depends(get_current_user)):
     """Get ledger statistics."""
     try:
-        all_certs = ledger.get_all()
+        all_certs = _ledger_backend.get_all()
 
         if not all_certs:
             return {
@@ -112,7 +112,7 @@ async def get_ledger_stats(user=Depends(get_current_user)):
 
         return {
             "total_entries": len(all_certs),
-            "chain_valid": ledger.verify_chain(),
+            "chain_valid": _ledger_backend.verify_chain(),
             "first_entry": all_certs[0].timestamp if all_certs else None,
             "latest_entry": all_certs[-1].timestamp if all_certs else None,
             "destroyed_count": destroyed,
@@ -125,10 +125,10 @@ async def get_ledger_stats(user=Depends(get_current_user)):
 async def verify_ledger(user=Depends(get_current_user)):
     """Verify the entire attestation chain."""
     try:
-        is_valid = ledger.verify_chain()
+        is_valid = _ledger_backend.verify_chain()
         return {
             "valid": is_valid,
-            "chain_length": ledger.chain_length,
+            "chain_length": _ledger_backend.chain_length,
             "timestamp": time.time(),
             "message": "Chain integrity verified" if is_valid else "CHAIN INTEGRITY COMPROMISED"
         }
