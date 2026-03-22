@@ -42,5 +42,6 @@ jobs:
 
       - name: Import check
         env:
-          ADS_JWT_SECRET: test-secret-for-ci
+          ADS_JWT_SECRET: test-jwt-secret-for-ci
+          ADS_SESSION_SECRET: test-session-secret-for-ci
         run: python -c "import sys; sys.path.insert(0, '.'); from webapp import app; print('app.py imports OK')"
