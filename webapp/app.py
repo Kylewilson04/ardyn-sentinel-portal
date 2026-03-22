@@ -669,7 +669,7 @@ def _build_enterprise_nav(user: dict) -> dict:
     return {}  # stub — returns empty nav during Phase 3 reduction
 
 # Protected pages - standard handlers with enterprise navigation
-standard_pages = ["playground", "history", "vault", "proofs", "ledger", "billing", "docs", "documents", "settings", "onboarding", "tutorial", "import", "audit"]
+standard_pages = ["playground", "history", "vault", "proofs", "ledger", "billing", "documents", "settings", "onboarding", "tutorial", "import", "audit"]
 
 for page in standard_pages:
     def make_handler(p):
