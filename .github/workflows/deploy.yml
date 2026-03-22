@@ -40,7 +40,7 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i ~/.ssh/id_ed25519 \
             $DEPLOY_USER@$DEPLOY_HOST \
-            "cd $DEPLOY_PATH && git reset --hard HEAD && git stash drop && git pull origin master && sudo systemctl restart $WEBAPP_SERVICE"
+            "cd $DEPLOY_PATH && git reset --hard HEAD && git stash drop 2>/dev/null; git pull origin master; sudo systemctl restart $WEBAPP_SERVICE"
 
       - name: Health check
         run: |
