@@ -11,43 +11,12 @@ env:
   WEBAPP_SERVICE: ads-webapp
 
 jobs:
-  # ── CI ──────────────────────────────────────────────────────────────────────
-  ci:
-    name: CI
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install dependencies
-        run: pip install -q fastapi uvicorn jinja2 python-multipart pyjwt passlib cryptography pydantic httpx stripe python-dotenv slowapi psutil
-
-      - name: Syntax check
-        run: |
-          python -m py_compile webapp/app.py
-          python -m py_compile webapp/routes/health.py
-          python -m py_compile webapp/routes/ledger.py
-          python -m py_compile webapp/routes/verify_api.py
-          python -m py_compile webapp/routes/audit.py
-          python -m py_compile webapp/routes/billing.py
-
-      - name: Import check
-        run: python -c "import sys; sys.path.insert(0, '.'); from webapp import app; print('OK')"
+  # ── CI — runs in separate workflow, see ci.yml ─────────────────────────────
 
   # ── Deploy — requires manual approval via GitHub environment ──────────────
   deploy:
     name: Deploy to Production
-    needs: ci
+    needs: [ci]
     runs-on: ubuntu-latest
     environment:
       name: production
@@ -55,26 +24,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to VM
+      - name: Set up SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.ACTIONS_DEPLOY_KEY }}
           KNOWN_HOSTS: ${{ secrets.KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
+          ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i ~/.ssh/id_ed25519 \
+            $DEPLOY_USER@$DEPLOY_HOST "echo 'SSH OK'"
 
-          # Stash local changes, pull latest, restart
-          ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_HOST << 'REMOTE'
-            set -e
-            cd $DEPLOY_PATH
-            git stash || true
-            git pull origin master
-            sudo systemctl restart $WEBAPP_SERVICE
-            echo "Deploy complete"
-          REMOTE
+      - name: Deploy to VM
+        run: |
+          ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i ~/.ssh/id_ed25519 \
+            $DEPLOY_USER@$DEPLOY_HOST \
+            "cd $DEPLOY_PATH && git stash || true && git pull origin master && sudo systemctl restart $WEBAPP_SERVICE"
 
       - name: Health check
         run: |
@@ -87,7 +54,7 @@ jobs:
         run: |
           curl -sf --max-time 10 http://$DEPLOY_HOST:8080/api/verify/chain \
             && echo "Chain API OK" \
-            || echo "Chain API check completed (may be empty)"
+            || echo "Chain API check completed"
 
   # ── Rollback ────────────────────────────────────────────────────────────────
   rollback:
@@ -100,26 +67,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Rollback to previous commit
+      - name: Set up SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.ACTIONS_DEPLOY_KEY }}
           KNOWN_HOSTS: ${{ secrets.KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-          # Revert to previous commit and restart
-          ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_HOST << 'REMOTE'
-            set -e
-            cd $DEPLOY_PATH
-            git revert --no-commit HEAD~1..HEAD || git reset --hard HEAD~1
-            git checkout .
-            sudo systemctl restart $WEBAPP_SERVICE
-            echo "Rollback complete"
-          REMOTE
+      - name: Rollback to previous commit
+        run: |
+          ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i ~/.ssh/id_ed25519 \
+            $DEPLOY_USER@$DEPLOY_HOST \
+            "cd $DEPLOY_PATH && git revert --no-commit HEAD~1..HEAD || git reset --hard HEAD~1 && sudo systemctl restart $WEBAPP_SERVICE"
 
       - name: Health check after rollback
         run: |
