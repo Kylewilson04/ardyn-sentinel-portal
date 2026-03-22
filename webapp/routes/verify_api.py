@@ -324,7 +324,7 @@ VERIFY_HTML = """<!DOCTYPE html>
   <a href="/" class="brand">ARDYN<span>.AI</span></a>
   <div class="nav-links">
     <a href="#how">Platform</a>
-    <a href="/reliability">Trust Evidence</a>
+    <a href="/reliability">Ardyn Ledger</a>
     <a href="#pricing">Pricing</a>
     <a href="https://docs.ardyn.ai">Docs</a>
     <a href="https://app.ardyn.ai">Dashboard</a>

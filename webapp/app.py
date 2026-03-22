@@ -206,6 +206,11 @@ if _website_dir.exists():
     from fastapi.staticfiles import StaticFiles as _SF
     app.mount("/website", _SF(directory=str(_website_dir)), name="website_static")
 
+# ── Docs (redirect to docs.ardyn.ai) ──
+@app.get("/docs")
+async def docs_redirect():
+    return RedirectResponse("https://docs.ardyn.ai", status_code=302)
+
 # ── Trust Dashboard (public metrics UI) ──
 @app.get("/trust", response_class=HTMLResponse)
 async def trust_dashboard(request: Request):
