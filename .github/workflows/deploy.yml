@@ -44,10 +44,9 @@ jobs:
 
       - name: Health check
         run: |
-          sleep 5
-          curl -sf --max-time 10 http://$DEPLOY_HOST:8080/health \
-            && echo "Health OK" \
-            || { echo "Health check FAILED"; exit 1; }
+          ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i ~/.ssh/id_ed25519 \
+            $DEPLOY_USER@$DEPLOY_HOST \
+            "sleep 3 && curl -sf http://localhost:8080/health && echo 'Health OK'"
 
       - name: Verify chain API
         run: |
@@ -85,7 +84,6 @@ jobs:
 
       - name: Health check after rollback
         run: |
-          sleep 5
-          curl -sf --max-time 10 http://$DEPLOY_HOST:8080/health \
-            && echo "Rollback health OK" \
-            || { echo "Rollback health check FAILED"; exit 1; }
+          ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i ~/.ssh/id_ed25519 \
+            $DEPLOY_USER@$DEPLOY_HOST \
+            "sleep 3 && curl -sf http://localhost:8080/health && echo 'Health OK'"
