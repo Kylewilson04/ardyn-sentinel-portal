@@ -41,10 +41,4 @@ jobs:
           python -m py_compile webapp/routes/billing.py
 
       - name: Import check
-        run: |
-          python -c "
-            import sys
-            sys.path.insert(0, '.')
-            from webapp import app
-            print('app.py imports OK')
-          "
+        run: python -c "import sys; sys.path.insert(0, '.'); from webapp import app; print('app.py imports OK')"
