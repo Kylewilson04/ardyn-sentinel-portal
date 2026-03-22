@@ -29,7 +29,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -q fastapi uvicorn jinja2 python-multipart pyjwt passlib cryptography pydantic httpx stripe python-dotenv slowapi psutil
+          pip install -q fastapi uvicorn jinja2 python-multipart pyjwt passlib cryptography pydantic httpx stripe python-dotenv slowapi psutil itsdangerous
 
       - name: Python syntax check
         run: |
