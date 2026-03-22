@@ -1,8 +1,7 @@
-name: Deploy
+name: Rollback
 
 on:
-  push:
-    branches: [main, master]
+  workflow_dispatch:
 
 env:
   DEPLOY_HOST: 20.119.179.146
@@ -11,14 +10,15 @@ env:
   WEBAPP_SERVICE: ads-webapp
 
 jobs:
-  deploy:
-    name: Deploy to Production
+  rollback:
+    name: Rollback to Previous Commit
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://ardyn.ai
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up SSH
         env:
@@ -30,23 +30,15 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
-          ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i ~/.ssh/id_ed25519 \
-            $DEPLOY_USER@$DEPLOY_HOST "echo 'SSH OK'"
 
-      - name: Deploy to VM
+      - name: Rollback to previous commit
         run: |
           ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i ~/.ssh/id_ed25519 \
             $DEPLOY_USER@$DEPLOY_HOST \
-            "cd $DEPLOY_PATH && git reset --hard HEAD && git stash drop 2>/dev/null; git pull origin master; sudo systemctl restart $WEBAPP_SERVICE"
+            "cd $DEPLOY_PATH && git reset --hard HEAD~1 && sudo systemctl restart $WEBAPP_SERVICE"
 
       - name: Health check
         run: |
           ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i ~/.ssh/id_ed25519 \
             $DEPLOY_USER@$DEPLOY_HOST \
             "sleep 3 && curl -sf http://localhost:8080/health && echo 'Health OK'"
-
-      - name: Verify chain API
-        run: |
-          curl -sf --max-time 10 http://$DEPLOY_HOST:8080/api/verify/chain \
-            && echo "Chain API OK" \
-            || echo "Chain API check completed"
