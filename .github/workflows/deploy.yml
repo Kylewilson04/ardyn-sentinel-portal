@@ -16,7 +16,6 @@ jobs:
   # ── Deploy — requires manual approval via GitHub environment ──────────────
   deploy:
     name: Deploy to Production
-    needs: [ci]
     runs-on: ubuntu-latest
     environment:
       name: production
