@@ -41,4 +41,6 @@ jobs:
           python -m py_compile webapp/routes/billing.py
 
       - name: Import check
+        env:
+          ADS_JWT_SECRET: test-secret-for-ci
         run: python -c "import sys; sys.path.insert(0, '.'); from webapp import app; print('app.py imports OK')"
